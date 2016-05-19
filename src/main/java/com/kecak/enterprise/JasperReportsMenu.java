@@ -65,7 +65,7 @@ public class JasperReportsMenu
 extends UserviewMenu
 implements PluginWebSupport {
     public String getName() {
-        return "JasperReports Userview Plugin";
+        return "Jasper Reports";
     }
 
     public String getVersion() {
@@ -85,11 +85,11 @@ implements PluginWebSupport {
     }
 
     public String getCategory() {
-        return "Enterprise";
+        return "Kecak Enterprise";
     }
 
     public String getIcon() {
-        return "/plugin/org.joget.plugin.enterprise.SqlChartMenu/images/grid_icon.gif";
+        return "/plugin/com.kecak.enterprise.JasperReportsMenu/images/grid_icon.gif";
     }
 
     public String getRenderPage() {
@@ -107,7 +107,7 @@ implements PluginWebSupport {
         }
         this.setProperty("includeUrl", (Object)reportUrl);
         String contextPath = AppUtil.getRequestContextPath();
-        String cssUrl = contextPath + "/plugin/org.joget.plugin.enterprise.JasperReportsMenu/css/jasper.css";
+        String cssUrl = contextPath + "/plugin/com.kecak.enterprise.JasperReportsMenu/css/jasper.css";
         String header = "<link rel=\"stylesheet\" href=\"" + cssUrl + "\" />";
         String customHeader = this.getPropertyString("customHeader");
         if (customHeader != null) {
@@ -160,7 +160,7 @@ implements PluginWebSupport {
         String appId = appDef.getId();
         String appVersion = appDef.getVersion().toString();
         Object[] arguments = new Object[]{appId, appVersion, appId, appVersion, appId, appVersion};
-        String json = AppUtil.readPluginResource((String)this.getClass().getName(), (String)"/properties/userview/jasperReports.json", (Object[])arguments, (boolean)true, (String)"message/userview/jasperReports");
+        String json = AppUtil.readPluginResource((String)this.getClass().getName(), (String)"/properties/jasperReports.json", (Object[])arguments, (boolean)true, (String)"message/jasperReports");
         return json;
     }
 
@@ -264,11 +264,11 @@ implements PluginWebSupport {
         DataSource ds = null;
         Object datasource = menu.getProperty("datasource");
         if (datasource != null && datasource instanceof Map && (dsMap = (Map)datasource) != null && dsMap.containsKey("classname") && !dsMap.get("className").toString().isEmpty() && (dsProperties = dsMap.get("properties")) != null && dsProperties instanceof Map) {
-            Map dsProps = (Map)dsProperties;
-            String jdbcDriver = (String)dsProps.get("jdbcDriver");
-            String jdbcUrl = (String)dsProps.get("jdbcUrl");
-            String jdbcUser = (String)dsProps.get("jdbcUser");
-            String jdbcPassword = (String)dsProps.get("jdbcPassword");
+            Map<String, String> dsProps = (Map)dsProperties;
+            String jdbcDriver = dsProps.get("jdbcDriver");
+            String jdbcUrl = dsProps.get("jdbcUrl");
+            String jdbcUser = dsProps.get("jdbcUser");
+            String jdbcPassword = dsProps.get("jdbcPassword");
             Properties props = new Properties();
             props.put("driverClassName", jdbcDriver);
             props.put("url", jdbcUrl);
@@ -332,7 +332,7 @@ implements PluginWebSupport {
                 if (request != null) {
                     request.getSession().setAttribute("net.sf.jasperreports.j2ee.jasper_print", (Object)print);
                 }
-                String imagesUri = AppUtil.getRequestContextPath() + "/web/json/plugin/org.joget.plugin.enterprise.JasperReportsMenu/service?image=";
+                String imagesUri = AppUtil.getRequestContextPath() + "/web/json/plugin/com.kecak.enterprise.JasperReportsMenu/service?image=";
                 jrHtmlExporter.setParameter((JRExporterParameter)JRHtmlExporterParameter.IMAGES_URI, (Object)imagesUri);
                 jrHtmlExporter.setParameter(JRHtmlExporterParameter.OUTPUT_STREAM, (Object)output);
                 jrHtmlExporter.setParameter(JRExporterParameter.CHARACTER_ENCODING, (Object)"UTF-8");
@@ -386,7 +386,7 @@ implements PluginWebSupport {
                 if (request != null) {
                     request.getSession().setAttribute("net.sf.jasperreports.j2ee.jasper_print", (Object)print);
                 }
-                String imagesUri = AppUtil.getRequestContextPath() + "/web/json/plugin/org.joget.plugin.enterprise.JasperReportsMenu/service?image=";
+                String imagesUri = AppUtil.getRequestContextPath() + "/web/json/plugin/com.kecak.enterprise.JasperReportsMenu/service?image=";
                 jrHtmlExporter.setParameter((JRExporterParameter)JRHtmlExporterParameter.IMAGES_URI, (Object)imagesUri);
                 jrHtmlExporter.setParameter(JRHtmlExporterParameter.OUTPUT_STREAM, (Object)output);
                 jrHtmlExporter.setParameter(JRExporterParameter.CHARACTER_ENCODING, (Object)"UTF-8");
