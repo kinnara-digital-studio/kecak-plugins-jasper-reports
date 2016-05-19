@@ -94,6 +94,20 @@
 		    <groupId>net.sf.jasperreports</groupId>
 		    <artifactId>jasperreports</artifactId>
 		    <version>4.5.1</version>
+		    <exclusions>
+		        <exclusion>
+                    <artifactId>xerces</artifactId>
+                    <groupId>xercesImpl</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>xerces</artifactId>
+                    <groupId>xmlParserAPIs</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>xml-apis</artifactId>
+                    <groupId>xml-apis</groupId>
+                </exclusion>
+		    </exclusions>
 		</dependency>
         <!-- End change plugin specific dependencies here -->
     </dependencies>
