@@ -1,7 +1,6 @@
-package com.kecak.enterprise;
+package com.kinnara.kecakplugins.jasperreports;
 
 import java.awt.Dimension;
-import java.awt.geom.Dimension2D;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -61,19 +60,17 @@ import net.sf.jasperreports.engine.util.JRSwapFile;
 import net.sf.jasperreports.engine.util.JRTypeSniffer;
 import net.sf.jasperreports.j2ee.servlets.BaseHttpServlet;
 
-public class JasperReportsMenu
-extends UserviewMenu
-implements PluginWebSupport {
+public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport {
     public String getName() {
-        return "Jasper Reports";
+        return "Kecak Jasper Reports";
     }
 
     public String getVersion() {
-        return "1.0";
+        return getClass().getPackage().getImplementationVersion();
     }
 
     public String getDescription() {
-        return "JasperReports Userview Plugin";
+        return "Artifact ID : " + getClass().getPackage().getImplementationTitle();
     }
 
     public PluginProperty[] getPluginProperties() {
@@ -89,7 +86,7 @@ implements PluginWebSupport {
     }
 
     public String getIcon() {
-        return "/plugin/com.kecak.enterprise.JasperReportsMenu/images/grid_icon.gif";
+        return "/plugin/" + getClassName() + "/images/grid_icon.gif";
     }
 
     public String getRenderPage() {
@@ -98,22 +95,22 @@ implements PluginWebSupport {
         if (menuId == null || menuId.trim().isEmpty()) {
             menuId = this.getPropertyString("id");
         }
-        String reportUrl = "/web/json/plugin/org.joget.plugin.enterprise.JasperReportsMenu/service?action=report&appId=" + appDef.getId() + "&appVersion=" + appDef.getVersion() + "&userviewId=" + this.getUserview().getPropertyString("id") + "&menuId=" + menuId;
+        String reportUrl = "/web/json/plugin/" + getClassName() + "/service?action=report&appId=" + appDef.getId() + "&appVersion=" + appDef.getVersion() + "&userviewId=" + this.getUserview().getPropertyString("id") + "&menuId=" + menuId;
         if (!"true".equals(this.getRequestParameter("isPreview"))) {
             for (String key : ((Map<String, String>)this.getRequestParameters()).keySet()) {
                 if (key.matches("appId|appVersion|userviewId|menuId|isPreview|embed|contextPath")) continue;
-                reportUrl = StringUtil.addParamsToUrl((String)reportUrl, (String)key, (String)this.getRequestParameterString(key));
+                reportUrl = StringUtil.addParamsToUrl(reportUrl, key, this.getRequestParameterString(key));
             }
         }
-        this.setProperty("includeUrl", (Object)reportUrl);
+        this.setProperty("includeUrl", reportUrl);
         String contextPath = AppUtil.getRequestContextPath();
-        String cssUrl = contextPath + "/plugin/com.kecak.enterprise.JasperReportsMenu/css/jasper.css";
+        String cssUrl = contextPath + "/plugin/" + getClassName() + "/css/jasper.css";
         String header = "<link rel=\"stylesheet\" href=\"" + cssUrl + "\" />";
         String customHeader = this.getPropertyString("customHeader");
         if (customHeader != null) {
             header = header + customHeader;
         }
-        this.setProperty("includeHeader", (Object)header);
+        this.setProperty("includeHeader", header);
         String pdfUrl = contextPath + reportUrl + "&type=pdf";
         String excelUrl = contextPath + reportUrl + "&type=xls";
         String footer = "<div class=\"exportlinks\">";
@@ -129,7 +126,7 @@ implements PluginWebSupport {
         if (customFooter != null) {
             footer = footer + customFooter;
         }
-        this.setProperty("includeFooter", (Object)footer);
+        this.setProperty("includeFooter", footer);
         String body = this.generateReport();
         String result = header + body + footer;
         return result;
@@ -148,7 +145,7 @@ implements PluginWebSupport {
     }
 
     public String getLabel() {
-        return "JasperReports";
+        return getName();
     }
 
     public String getClassName() {
@@ -160,7 +157,7 @@ implements PluginWebSupport {
         String appId = appDef.getId();
         String appVersion = appDef.getVersion().toString();
         Object[] arguments = new Object[]{appId, appVersion, appId, appVersion, appId, appVersion};
-        String json = AppUtil.readPluginResource((String)this.getClass().getName(), (String)"/properties/jasperReports.json", (Object[])arguments, (boolean)true, (String)"message/jasperReports");
+        String json = AppUtil.readPluginResource(this.getClass().getName(), "/properties/jasperReports.json", (Object[])arguments, (boolean)true, "message/jasperReports");
         return json;
     }
 
@@ -199,9 +196,9 @@ implements PluginWebSupport {
                 response.setStatus(204);
             }
             catch (Exception ex) {
-                LogUtil.error((String)this.getClass().getName(), (Throwable)ex, (String)"");
+                LogUtil.error(this.getClass().getName(), (Throwable)ex, "");
                 HashMap<String, Object> model = new HashMap<String, Object>();
-                model.put("request", (Object)request);
+                model.put("request", request);
                 model.put("exception", ex);
                 PluginManager pluginManager = (PluginManager)AppUtil.getApplicationContext().getBean("pluginManager");
                 String content = pluginManager.getPluginFreeMarkerTemplate(model, this.getClass().getName(), "/templates/jasperError.ftl", null);
@@ -274,11 +271,11 @@ implements PluginWebSupport {
             props.put("url", jdbcUrl);
             props.put("username", jdbcUser);
             props.put("password", jdbcPassword);
-            LogUtil.debug((String)this.getClass().getName(), (String)("Using custom datasource " + jdbcUrl));
+            LogUtil.debug(this.getClass().getName(), ("Using custom datasource " + jdbcUrl));
             ds = BasicDataSourceFactory.createDataSource((Properties)props);
         }
         if (ds == null) {
-            LogUtil.debug((String)this.getClass().getName(), (String)"Using current profile datasource");
+            LogUtil.debug(this.getClass().getName(), "Using current profile datasource");
             ds = (DataSource)AppUtil.getApplicationContext().getBean("setupDataSource");
         }
         if (ds != null) {
@@ -325,23 +322,23 @@ implements PluginWebSupport {
                 if (menuId == null || menuId.trim().isEmpty()) {
                     menuId = this.getPropertyString("id");
                 }
-                LogUtil.debug((String)this.getClass().getName(), (String)("Generating HTML report for " + menuId));
+                LogUtil.debug(this.getClass().getName(), ("Generating HTML report for " + menuId));
                 JRHtmlExporter jrHtmlExporter = new JRHtmlExporter();
-                jrHtmlExporter.setParameter(JRHtmlExporterParameter.JASPER_PRINT, (Object)print);
+                jrHtmlExporter.setParameter(JRHtmlExporterParameter.JASPER_PRINT, print);
                 HttpServletRequest request = WorkflowUtil.getHttpServletRequest();
                 if (request != null) {
-                    request.getSession().setAttribute("net.sf.jasperreports.j2ee.jasper_print", (Object)print);
+                    request.getSession().setAttribute("net.sf.jasperreports.j2ee.jasper_print", print);
                 }
-                String imagesUri = AppUtil.getRequestContextPath() + "/web/json/plugin/com.kecak.enterprise.JasperReportsMenu/service?image=";
-                jrHtmlExporter.setParameter((JRExporterParameter)JRHtmlExporterParameter.IMAGES_URI, (Object)imagesUri);
-                jrHtmlExporter.setParameter(JRHtmlExporterParameter.OUTPUT_STREAM, (Object)output);
-                jrHtmlExporter.setParameter(JRExporterParameter.CHARACTER_ENCODING, (Object)"UTF-8");
+                String imagesUri = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?image=";
+                jrHtmlExporter.setParameter(JRHtmlExporterParameter.IMAGES_URI, imagesUri);
+                jrHtmlExporter.setParameter(JRHtmlExporterParameter.OUTPUT_STREAM, output);
+                jrHtmlExporter.setParameter(JRExporterParameter.CHARACTER_ENCODING, "UTF-8");
                 jrHtmlExporter.exportReport();
                 return new String(output.toByteArray(), "UTF-8");
             }
         }
         catch (Exception e) {
-            LogUtil.error((String)this.getClass().getName(), (Throwable)e, (String)"");
+            LogUtil.error(this.getClass().getName(), (Throwable)e, "");
             HashMap<String, Exception> model = new HashMap<String, Exception>();
             model.put("exception", e);
             PluginManager pluginManager = (PluginManager)AppUtil.getApplicationContext().getBean("pluginManager");
@@ -362,34 +359,34 @@ implements PluginWebSupport {
                     response.setHeader("Content-Type", "application/pdf");
                     response.setHeader("Content-Disposition", "inline; filename=" + menuId + ".pdf");
                 }
-                LogUtil.debug((String)this.getClass().getName(), (String)("Generating PDF report for " + menuId));
+                LogUtil.debug(this.getClass().getName(), ("Generating PDF report for " + menuId));
                 JasperExportManager.exportReportToPdfStream((JasperPrint)print, (OutputStream)output);
             } else if ("xls".equals(type)) {
                 if (response != null) {
                     response.setHeader("Content-Type", "application/vnd.ms-excel");
                     response.setHeader("Content-Disposition", "inline; filename=" + menuId + ".xls");
                 }
-                LogUtil.debug((String)this.getClass().getName(), (String)("Generating XLS report for " + menuId));
+                LogUtil.debug(this.getClass().getName(), ("Generating XLS report for " + menuId));
                 JRXlsExporter exporter = new JRXlsExporter();
-                exporter.setParameter(JRExporterParameter.OUTPUT_STREAM, (Object)output);
-                exporter.setParameter(JRExporterParameter.JASPER_PRINT, (Object)print);
-                exporter.setParameter(JRExporterParameter.CHARACTER_ENCODING, (Object)"UTF-8");
+                exporter.setParameter(JRExporterParameter.OUTPUT_STREAM, output);
+                exporter.setParameter(JRExporterParameter.JASPER_PRINT, print);
+                exporter.setParameter(JRExporterParameter.CHARACTER_ENCODING, "UTF-8");
                 exporter.exportReport();
             } else {
                 if (response != null) {
                     response.setHeader("Content-Type", "text/html; charset=UTF-8");
                     response.setHeader("Content-Disposition", "inline; filename=" + menuId + ".html");
                 }
-                LogUtil.debug((String)this.getClass().getName(), (String)("Generating HTML report for " + menuId));
+                LogUtil.debug(this.getClass().getName(), ("Generating HTML report for " + menuId));
                 JRHtmlExporter jrHtmlExporter = new JRHtmlExporter();
-                jrHtmlExporter.setParameter(JRHtmlExporterParameter.JASPER_PRINT, (Object)print);
+                jrHtmlExporter.setParameter(JRHtmlExporterParameter.JASPER_PRINT, print);
                 if (request != null) {
-                    request.getSession().setAttribute("net.sf.jasperreports.j2ee.jasper_print", (Object)print);
+                    request.getSession().setAttribute("net.sf.jasperreports.j2ee.jasper_print", print);
                 }
-                String imagesUri = AppUtil.getRequestContextPath() + "/web/json/plugin/com.kecak.enterprise.JasperReportsMenu/service?image=";
-                jrHtmlExporter.setParameter((JRExporterParameter)JRHtmlExporterParameter.IMAGES_URI, (Object)imagesUri);
-                jrHtmlExporter.setParameter(JRHtmlExporterParameter.OUTPUT_STREAM, (Object)output);
-                jrHtmlExporter.setParameter(JRExporterParameter.CHARACTER_ENCODING, (Object)"UTF-8");
+                String imagesUri = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?image=";
+                jrHtmlExporter.setParameter(JRHtmlExporterParameter.IMAGES_URI, imagesUri);
+                jrHtmlExporter.setParameter(JRHtmlExporterParameter.OUTPUT_STREAM, output);
+                jrHtmlExporter.setParameter(JRExporterParameter.CHARACTER_ENCODING, "UTF-8");
                 jrHtmlExporter.exportReport();
             }
         }
@@ -422,16 +419,16 @@ implements PluginWebSupport {
                 }
             }
         }
-        List jasperPrintList = BaseHttpServlet.getJasperPrintList((HttpServletRequest)request);
+        List<JasperPrint> jasperPrintList = BaseHttpServlet.getJasperPrintList((HttpServletRequest)request);
         if (jasperPrintList == null) {
             throw new ServletException("No JasperPrint documents found on the HTTP session.");
         }
-        JRPrintImage image = JRHtmlExporter.getImage((List)jasperPrintList, (String)imageName);
+        JRPrintImage image = JRHtmlExporter.getImage(jasperPrintList, imageName);
         JRRenderable renderer = image.getRenderer();
         if (renderer.getType() == 1) {
-            renderer = new JRWrappingSvgRenderer(renderer, (Dimension2D)new Dimension(image.getWidth(), image.getHeight()), ModeEnum.OPAQUE == image.getModeValue() ? image.getBackcolor() : null);
+            renderer = new JRWrappingSvgRenderer(renderer, new Dimension(image.getWidth(), image.getHeight()), ModeEnum.OPAQUE == image.getModeValue() ? image.getBackcolor() : null);
         }
-        imageMimeType = JRTypeSniffer.getImageMimeType((byte)renderer.getImageType());
+        imageMimeType = JRTypeSniffer.getImageMimeType(renderer.getImageType());
         try {
             imageData = renderer.getImageData();
         }
