@@ -67,7 +67,7 @@
             value : '',
             label : '@@userview.jasperReports.defaultDatasource@@'
         },{
-            value : 'org.joget.plugin.enterprise.JasperReportsJdbcOptions',
+            value : '%s',
             label : '@@userview.jasperReports.customDatasource@@'
         }],
         url : '[CONTEXT_PATH]/web/property/json[APP_PATH]/getPropertyOptions'
