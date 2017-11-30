@@ -106,4 +106,29 @@ public class JasperFileUpload extends FileUpload {
         }
         return null;
     }
+
+    @Override
+    public String getName() {
+        return "Jasper File";
+    }
+
+    @Override
+    public String getLabel() {
+        return getName();
+    }
+
+    @Override
+    public String getClassName() {
+        return getClass().getName();
+    }
+
+    @Override
+    public String getDescription() {
+        return getClass().getPackage().getImplementationTitle();
+    }
+
+    @Override
+    public String getVersion() {
+        return getClass().getPackage().getImplementationVersion();
+    }
 }
