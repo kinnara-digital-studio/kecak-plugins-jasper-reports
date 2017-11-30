@@ -16,6 +16,7 @@ public class Activator implements BundleActivator {
         //Register plugin here
         registrationList.add(context.registerService(JasperReportsMenu.class.getName(), new JasperReportsMenu(), null));
         registrationList.add(context.registerService(JasperReportsJdbcOptions.class.getName(), new JasperReportsJdbcOptions(), null));
+        registrationList.add(context.registerService(JasperFileUpload.class.getName(), new JasperFileUpload(), null));
     }
 
     public void stop(BundleContext context) {

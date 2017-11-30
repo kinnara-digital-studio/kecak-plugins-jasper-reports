@@ -141,6 +141,14 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
         return json;
     }
 
+    /**
+     * Web Service to download PDF or Excel
+     * @param request
+     * @param response
+     * @throws ServletException
+     * @throws IOException
+     */
+    @Override
     public void webService(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         block9 : {
             ServletOutputStream output = response.getOutputStream();
@@ -163,9 +171,9 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
                         AppService appService = (AppService)AppUtil.getApplicationContext().getBean("appService");
                         appDef = appService.getAppDefinition(appId, appVersion.toString());
                     }
-                    selectedMenu = json != null && !json.trim().isEmpty() ? this.findUserviewMenuFromPreview(json, menuId, contextPath, parameterMap, key) : this.findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap);
+                    selectedMenu = json != null && !json.trim().isEmpty() ? findUserviewMenuFromPreview(json, menuId, contextPath, parameterMap, key) : this.findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap);
                     if (selectedMenu != null) {
-                        this.generateReport(selectedMenu, type, (OutputStream)output, request, response);
+                        this.generateReport(selectedMenu, type, output, request, response);
                     }
                     break block9;
                 }
@@ -340,7 +348,7 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
                     response.setHeader("Content-Disposition", "inline; filename=" + menuId + ".pdf");
                 }
                 LogUtil.debug(this.getClass().getName(), ("Generating PDF report for " + menuId));
-                JasperExportManager.exportReportToPdfStream((JasperPrint)print, (OutputStream)output);
+                JasperExportManager.exportReportToPdfStream(print, output);
             } else if ("xls".equals(type)) {
                 if (response != null) {
                     response.setHeader("Content-Type", "application/vnd.ms-excel");
