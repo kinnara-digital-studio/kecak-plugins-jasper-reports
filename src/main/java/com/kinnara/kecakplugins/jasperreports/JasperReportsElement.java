@@ -5,42 +5,60 @@ import net.sf.jasperreports.engine.fill.JRSwapFileVirtualizer;
 import net.sf.jasperreports.engine.util.JRSwapFile;
 import org.apache.commons.dbcp.BasicDataSourceFactory;
 import org.joget.apps.app.model.AppDefinition;
-import org.joget.apps.app.service.AppService;
 import org.joget.apps.app.service.AppUtil;
-import org.joget.apps.form.lib.FileUpload;
+import org.joget.apps.form.model.Element;
+import org.joget.apps.form.model.FormBuilderPaletteElement;
 import org.joget.apps.form.model.FormData;
 import org.joget.apps.form.service.FileUtil;
-import org.joget.apps.userview.model.Element;
+import org.joget.apps.form.service.FormUtil;
 import org.joget.apps.userview.model.UserviewMenu;
 import org.joget.commons.util.LogUtil;
 import org.joget.commons.util.SetupManager;
 import org.joget.plugin.base.PluginManager;
 
-import javax.servlet.ServletOutputStream;
 import javax.sql.DataSource;
 import java.io.*;
 import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-public class JasperFileUpload extends FileUpload {
+public class JasperReportsElement extends Element implements FormBuilderPaletteElement {
     @Override
     public String renderTemplate(FormData formData, Map dataModel) {
-        File f = new File("");
-        try(FileOutputStream output = new FileOutputStream(f)) {
-            JasperPrint print = getReport();
-            JasperExportManager.exportReportToPdfStream(print, output);
-            FileUtil.storeFile(f, this, formData.getPrimaryKeyValue());
-        } catch (Exception ex) {
-            LogUtil.error(this.getClass().getName(), (Throwable)ex, "");
-            HashMap<String, Object> model = new HashMap<>();
-            PluginManager pluginManager = (PluginManager)AppUtil.getApplicationContext().getBean("pluginManager");
-            return pluginManager.getPluginFreeMarkerTemplate(model, this.getClass().getName(), "/templates/jasperError.ftl", null);
+        String template = "jasperFile.ftl";
+        String elementId = getPropertyString("id");
+        if(FormUtil.findRootForm(this) != null && formData.getPrimaryKeyValue() != null) {
+            LogUtil.info(getClassName(), "className ["+this.getClassName() +"]");
+            LogUtil.info(getClassName(), "elementId ["+elementId+"]");
+            LogUtil.info(getClassName(), "primaryKey ["+formData.getPrimaryKeyValue()+"]");
+            try {
+                File file = FileUtil.getFile(
+                        elementId + ".pdf",
+                        this,
+                        formData.getPrimaryKeyValue());
+                try (FileOutputStream output = new FileOutputStream(file)) {
+                    JasperPrint print = getReport();
+                    JasperExportManager.exportReportToPdfStream(print, output);
+                    FileUtil.storeFile(file, this, formData.getPrimaryKeyValue());
+                } catch (Exception e) {
+                    LogUtil.error(this.getClass().getName(), e, "");
+                    HashMap<String, Exception> model = new HashMap<String, Exception>();
+                    model.put("exception", e);
+                    PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
+                    return pluginManager.getPluginFreeMarkerTemplate(model, this.getClass().getName(), "/templates/jasperError.ftl", null);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                LogUtil.error(getClassName(), e, "");
+            } catch (NullPointerException e) {
+                e.printStackTrace();
+                LogUtil.error(getClassName(), e, "");
+            }
         }
-
-        return super.renderTemplate(formData, dataModel);
+        dataModel.put("className", getClassName());
+        String html = FormUtil.generateElementHtml(this, formData, template, dataModel);
+        return html;
     }
 
     protected JasperPrint getReport() throws Exception {
@@ -81,15 +99,14 @@ public class JasperFileUpload extends FileUpload {
                     hm.put(parameter.get("name"), parameter.get("value"));
                 }
             }
-            JRSwapFileVirtualizer virtualizer = null;
             if ("true".equals(getProperty("use_virtualizer"))) { // TODO
                 String path = SetupManager.getBaseDirectory() + "temp_jasper_swap";
                 File filepath = new File(path);
                 if (!filepath.exists()) {
                     filepath.mkdirs();
                 }
-                virtualizer = new JRSwapFileVirtualizer(300, new JRSwapFile(filepath.getAbsolutePath(), 4096, 100), true);
-                hm.put("REPORT_VIRTUALIZER", (JRSwapFileVirtualizer)virtualizer);
+                JRSwapFileVirtualizer virtualizer = new JRSwapFileVirtualizer(300, new JRSwapFile(filepath.getAbsolutePath(), 4096, 100), true);
+                hm.put("REPORT_VIRTUALIZER", virtualizer);
             }
             Connection conn = null;
             JasperPrint print = null;
@@ -109,7 +126,7 @@ public class JasperFileUpload extends FileUpload {
 
     @Override
     public String getName() {
-        return "Jasper File";
+        return "Jasper Reports Element";
     }
 
     @Override
@@ -130,5 +147,35 @@ public class JasperFileUpload extends FileUpload {
     @Override
     public String getVersion() {
         return getClass().getPackage().getImplementationVersion();
+    }
+
+    @Override
+    public String getPropertyOptions() {
+        AppDefinition appDef = AppUtil.getCurrentAppDefinition();
+        String appId = appDef.getId();
+        String appVersion = appDef.getVersion().toString();
+        Object[] arguments = new Object[]{appId, appVersion, appId, appVersion, appId, appVersion};
+        String json = AppUtil.readPluginResource(this.getClass().getName(), "/properties/jasperFile.json", (Object[])arguments, (boolean)true, "message/jasperReports");
+        return json;
+    }
+
+    @Override
+    public String getFormBuilderCategory() {
+        return "Kecak";
+    }
+
+    @Override
+    public int getFormBuilderPosition() {
+        return 500;
+    }
+
+    @Override
+    public String getFormBuilderIcon() {
+        return null;
+    }
+
+    @Override
+    public String getFormBuilderTemplate() {
+        return "<img src='/plugin/" +getClassName()+"/icon.png'>";
     }
 }
