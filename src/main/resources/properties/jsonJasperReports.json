@@ -59,19 +59,22 @@
 },
 {
     title : '@@userview.jasperReports.configureDatasource@@',
-    properties : [{
-        name : 'datasource',
-        label : '@@userview.jasperReports.datasource@@',
-        type : 'elementselect',
-        options : [{
-            value : '',
-            label : '@@userview.jasperReports.defaultDatasource@@'
-        },{
-            value : '%s',
-            label : '@@userview.jasperReports.customDatasource@@'
-        }],
-        url : '[CONTEXT_PATH]/web/property/json[APP_PATH]/getPropertyOptions'
-    }]
+    properties : [
+    {
+      name: 'baseUrl',
+      label: '@@userview.jasperReports.baseUrl@@',
+      type: 'textfield',
+      regex_validation : '^https?://.+',
+      validation_message : '@@userview.jasperReports.invalidUrl@@'
+    },
+    {
+        name: 'dataListId',
+        label: '@@userview.jasperReports.dataListId@@',
+        type: 'selectbox',
+        required: 'true',
+        options_ajax: '[CONTEXT_PATH]/web/json/console/app[APP_PATH]/datalist/options'
+    }
+    ]
 },
 {
     title : '@@userview.jasperReports.reportParameters@@',
@@ -87,6 +90,19 @@
             key : 'value',
             label : '@@userview.jasperReports.parameter.value@@'
         }]
+    },
+    {
+        name : 'urlParameters',
+        label : '@@userview.jasperReports.urlParameters@@',
+        type : 'grid',
+        columns : [{
+            key : 'name',
+            label : '@@userview.jasperReports.parameter.name@@'
+        },
+            {
+                key : 'value',
+                label : '@@userview.jasperReports.parameter.value@@'
+            }]
     }]
 },
 {

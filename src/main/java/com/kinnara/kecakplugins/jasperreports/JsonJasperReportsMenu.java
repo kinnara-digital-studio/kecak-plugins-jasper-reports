@@ -1,6 +1,7 @@
 package com.kinnara.kecakplugins.jasperreports;
 
 import net.sf.jasperreports.engine.*;
+import net.sf.jasperreports.engine.data.JsonDataSource;
 import net.sf.jasperreports.engine.export.JRHtmlExporter;
 import net.sf.jasperreports.engine.export.JRHtmlExporterParameter;
 import net.sf.jasperreports.engine.export.JRXlsExporter;
@@ -9,7 +10,11 @@ import net.sf.jasperreports.engine.type.ModeEnum;
 import net.sf.jasperreports.engine.util.JRSwapFile;
 import net.sf.jasperreports.engine.util.JRTypeSniffer;
 import net.sf.jasperreports.j2ee.servlets.BaseHttpServlet;
-import org.apache.commons.dbcp.BasicDataSourceFactory;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.joget.apps.app.dao.UserviewDefinitionDao;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.UserviewDefinition;
@@ -32,18 +37,17 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.sql.DataSource;
 import java.awt.*;
 import java.io.*;
-import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-@Deprecated
-public class JasperReportsMenuLegacy extends UserviewMenu implements PluginWebSupport {
+public class JsonJasperReportsMenu extends UserviewMenu implements PluginWebSupport {
     public String getName() {
-        return "Jasper Reports Legacy";
+        return "JSON Jasper Reports";
     }
 
     public String getVersion() {
@@ -138,7 +142,7 @@ public class JasperReportsMenuLegacy extends UserviewMenu implements PluginWebSu
         String appId = appDef.getId();
         String appVersion = appDef.getVersion().toString();
         Object[] arguments = new Object[]{appId, appVersion, appId, appVersion, appId, appVersion};
-        String json = AppUtil.readPluginResource(this.getClass().getName(), "/properties/jasperReportsLegacy.json", arguments, true, "message/jasperReports");
+        String json = AppUtil.readPluginResource(this.getClass().getName(), "/properties/jsonJasperReports.json", (Object[])arguments, (boolean)true, "message/jasperReports");
         return json;
     }
 
@@ -174,7 +178,7 @@ public class JasperReportsMenuLegacy extends UserviewMenu implements PluginWebSu
                     }
                     selectedMenu = json != null && !json.trim().isEmpty() ? findUserviewMenuFromPreview(json, menuId, contextPath, parameterMap, key) : this.findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap);
                     if (selectedMenu != null) {
-                        this.generateReport(selectedMenu, type, output, request, response);
+                        this.generateReport(appDef, selectedMenu, type, output, request, response);
                     }
                     break block9;
                 }
@@ -238,7 +242,7 @@ public class JasperReportsMenuLegacy extends UserviewMenu implements PluginWebSu
         return selectedMenu;
     }
 
-    protected JasperPrint getReport(UserviewMenu menu) throws JRException, SQLException, UnsupportedEncodingException, Exception {
+    protected JasperPrint getReport(AppDefinition appDef, UserviewMenu menu) throws IOException, JRException {
         Map dsMap;
         Object dsProperties;
         String jrxml = menu.getPropertyString("jrxml");
@@ -247,65 +251,59 @@ public class JasperReportsMenuLegacy extends UserviewMenu implements PluginWebSu
         }
         ByteArrayInputStream input = new ByteArrayInputStream(jrxml.getBytes("UTF-8"));
         JasperReport report = JasperCompileManager.compileReport(input);
-        DataSource ds = null;
-        Object datasource = menu.getProperty("datasource");
-        if (datasource != null && datasource instanceof Map && (dsMap = (Map)datasource) != null && dsMap.containsKey("classname") && !dsMap.get("className").toString().isEmpty() && (dsProperties = dsMap.get("properties")) != null && dsProperties instanceof Map) {
-            Map<String, String> dsProps = (Map)dsProperties;
-            String jdbcDriver = dsProps.get("jdbcDriver");
-            String jdbcUrl = dsProps.get("jdbcUrl");
-            String jdbcUser = dsProps.get("jdbcUser");
-            String jdbcPassword = dsProps.get("jdbcPassword");
-            Properties props = new Properties();
-            props.put("driverClassName", jdbcDriver);
-            props.put("url", jdbcUrl);
-            props.put("username", jdbcUser);
-            props.put("password", jdbcPassword);
-            LogUtil.debug(this.getClass().getName(), ("Using custom datasource " + jdbcUrl));
-            ds = BasicDataSourceFactory.createDataSource((Properties)props);
+        HashMap hm = new HashMap();
+        Object[] parameters = (Object[])menu.getProperty("parameters");
+        if (parameters != null && parameters.length > 0) {
+            for (Object o : parameters) {
+                HashMap parameter = (HashMap)o;
+                hm.put(parameter.get("name"), parameter.get("value"));
+            }
         }
-        if (ds == null) {
-            LogUtil.debug(this.getClass().getName(), "Using current profile datasource");
-            ds = (DataSource)AppUtil.getApplicationContext().getBean("setupDataSource");
+        JRSwapFileVirtualizer virtualizer = null;
+        if ("true".equals(menu.getProperty("use_virtualizer"))) {
+            String path = SetupManager.getBaseDirectory() + "temp_jasper_swap";
+            File filepath = new File(path);
+            if (!filepath.exists()) {
+                filepath.mkdirs();
+            }
+            virtualizer = new JRSwapFileVirtualizer(300, new JRSwapFile(filepath.getAbsolutePath(), 4096, 100), true);
+            hm.put("REPORT_VIRTUALIZER", virtualizer);
         }
-        if (ds != null) {
-            HashMap hm = new HashMap();
-            Object[] parameters = (Object[])menu.getProperty("parameters");
-            if (parameters != null && parameters.length > 0) {
-                for (Object o : parameters) {
-                    HashMap parameter = (HashMap)o;
-                    hm.put(parameter.get("name"), parameter.get("value"));
-                }
-            }
-            JRSwapFileVirtualizer virtualizer = null;
-            if ("true".equals(menu.getProperty("use_virtualizer"))) {
-                String path = SetupManager.getBaseDirectory() + "temp_jasper_swap";
-                File filepath = new File(path);
-                if (!filepath.exists()) {
-                    filepath.mkdirs();
-                }
-                virtualizer = new JRSwapFileVirtualizer(300, new JRSwapFile(filepath.getAbsolutePath(), 4096, 100), true);
-                hm.put("REPORT_VIRTUALIZER", (JRSwapFileVirtualizer)virtualizer);
-            }
-            Connection conn = null;
-            JasperPrint print = null;
-            try {
-                conn = ds.getConnection();
-                print = JasperFillManager.fillReport(report, hm, (Connection)conn);
-            }
-            finally {
-                if (conn != null) {
-                    conn.close();
-                }
-            }
-            return print;
-        }
-        return null;
+
+        HttpClient client = HttpClientBuilder.create().build();
+        String baseUrl = menu.getPropertyString("baseUrl");
+        if(baseUrl.isEmpty())
+            baseUrl = AppUtil.getRequestContextPath();
+
+        String url = baseUrl
+                + "/web/json/plugin/"
+                + JasperReportDataListWebService.class.getName()
+                + "/service?"
+                + String.format("appId=%s&appVersion=%s&dataListId=%s",
+                    appDef.getId(), appDef.getVersion(), menu.getPropertyString("dataListId"));
+
+
+        LogUtil.info(getClassName(), "url ["+url+"]");
+        HttpRequestBase request = new HttpGet(url);
+
+        // persiapkan HTTP header
+//                Object[] headers = (Object[]) getProperty("headers");
+//                if(headers != null)
+//                    for(Object rowHeader : headers){
+//                        Map<String, String> row = (Map<String, String>) rowHeader;
+//                        request.addHeader(row.get("key"), AppUtil.processHashVariable((String) row.get("value"), wfAssignment, null, null));
+//                    }
+
+        HttpResponse response = client.execute(request);
+        JRDataSource dataSource = new JsonDataSource(response.getEntity().getContent());
+        JasperPrint print = JasperFillManager.fillReport(report, hm, dataSource);
+        return print;
     }
 
     protected String generateReport() {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         try {
-            JasperPrint print = this.getReport(this);
+            JasperPrint print = this.getReport(AppUtil.getCurrentAppDefinition(), this);
             if (print != null) {
                 String menuId = this.getPropertyString("customId");
                 if (menuId == null || menuId.trim().isEmpty()) {
@@ -336,13 +334,14 @@ public class JasperReportsMenuLegacy extends UserviewMenu implements PluginWebSu
         return "";
     }
 
-    protected void generateReport(UserviewMenu menu, String type, OutputStream output, HttpServletRequest request, HttpServletResponse response) throws Exception, IOException, JRException, BeansException, UnsupportedEncodingException, SQLException {
+    protected void generateReport(AppDefinition appDef, UserviewMenu menu, String type, OutputStream output, HttpServletRequest request, HttpServletResponse response) throws Exception, IOException, JRException, BeansException, UnsupportedEncodingException, SQLException {
         JasperPrint print;
         String menuId = menu.getPropertyString("customId");
         if (menuId == null || menuId.trim().isEmpty()) {
             menuId = menu.getPropertyString("id");
         }
-        if ((print = this.getReport(menu)) != null) {
+
+        if ((print = this.getReport(appDef, menu)) != null) {
             if ("pdf".equals(type)) {
                 if (response != null) {
                     response.setHeader("Content-Type", "application/pdf");

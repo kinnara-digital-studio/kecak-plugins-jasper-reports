@@ -14,8 +14,8 @@ public class Activator implements BundleActivator {
         registrationList = new ArrayList<ServiceRegistration>();
 
         //Register plugin here
+        registrationList.add(context.registerService(JsonJasperReportsMenu.class.getName(), new JsonJasperReportsMenu(), null));
         registrationList.add(context.registerService(JasperReportsMenu.class.getName(), new JasperReportsMenu(), null));
-        registrationList.add(context.registerService(JasperReportsMenuLegacy.class.getName(), new JasperReportsMenuLegacy(), null));
         registrationList.add(context.registerService(JasperReportsJdbcOptions.class.getName(), new JasperReportsJdbcOptions(), null));
         registrationList.add(context.registerService(JasperReportsElement.class.getName(), new JasperReportsElement(), null));
         registrationList.add(context.registerService(JasperReportDataListWebService.class.getName(), new JasperReportDataListWebService(), null));
