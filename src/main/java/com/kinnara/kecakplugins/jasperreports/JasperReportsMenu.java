@@ -1,11 +1,11 @@
 package com.kinnara.kecakplugins.jasperreports;
 
 import net.sf.jasperreports.engine.*;
-import net.sf.jasperreports.engine.export.JRHtmlExporter;
+import net.sf.jasperreports.engine.export.HtmlExporter;
 import net.sf.jasperreports.engine.export.JRHtmlExporterParameter;
 import net.sf.jasperreports.engine.export.JRXlsExporter;
 import net.sf.jasperreports.engine.fill.JRSwapFileVirtualizer;
-import net.sf.jasperreports.engine.type.ModeEnum;
+import net.sf.jasperreports.engine.type.ImageTypeEnum;
 import net.sf.jasperreports.engine.util.JRSwapFile;
 import net.sf.jasperreports.engine.util.JRTypeSniffer;
 import net.sf.jasperreports.j2ee.servlets.BaseHttpServlet;
@@ -33,12 +33,10 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.sql.DataSource;
-import java.awt.*;
 import java.io.*;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
-import java.util.List;
 
 public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport {
     public String getName() {
@@ -70,46 +68,53 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
     }
 
     public String getRenderPage() {
-        AppDefinition appDef = AppUtil.getCurrentAppDefinition();
-        String menuId = this.getPropertyString("customId");
-        if (menuId == null || menuId.trim().isEmpty()) {
-            menuId = this.getPropertyString("id");
-        }
-        String reportUrl = "/web/json/plugin/" + getClassName() + "/service?action=report&appId=" + appDef.getId() + "&appVersion=" + appDef.getVersion() + "&userviewId=" + this.getUserview().getPropertyString("id") + "&menuId=" + menuId;
-        if (!"true".equals(this.getRequestParameter("isPreview"))) {
-            for (String key : ((Map<String, String>)this.getRequestParameters()).keySet()) {
-                if (key.matches("appId|appVersion|userviewId|menuId|isPreview|embed|contextPath")) continue;
-                reportUrl = StringUtil.addParamsToUrl(reportUrl, key, this.getRequestParameterString(key));
+        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(this.getClass().getClassLoader());
+        try {
+            AppDefinition appDef = AppUtil.getCurrentAppDefinition();
+            String menuId = this.getPropertyString("customId");
+            if (menuId == null || menuId.trim().isEmpty()) {
+                menuId = this.getPropertyString("id");
             }
+            String reportUrl = "/web/json/plugin/" + getClassName() + "/service?action=report&appId=" + appDef.getId() + "&appVersion=" + appDef.getVersion() + "&userviewId=" + this.getUserview().getPropertyString("id") + "&menuId=" + menuId;
+            if (!"true".equals(this.getRequestParameter("isPreview"))) {
+                for (String key : ((Map<String, String>) this.getRequestParameters()).keySet()) {
+                    if (key.matches("appId|appVersion|userviewId|menuId|isPreview|embed|contextPath")) continue;
+                    reportUrl = StringUtil.addParamsToUrl(reportUrl, key, this.getRequestParameterString(key));
+                }
+            }
+            this.setProperty("includeUrl", reportUrl);
+            String contextPath = AppUtil.getRequestContextPath();
+            String cssUrl = contextPath + "/plugin/" + getClassName() + "/css/jasper.css";
+            String header = "<link rel=\"stylesheet\" href=\"" + cssUrl + "\" />";
+            String customHeader = this.getPropertyString("customHeader");
+            if (customHeader != null) {
+                header = header + customHeader;
+            }
+            this.setProperty("includeHeader", header);
+            String pdfUrl = contextPath + reportUrl + "&type=pdf";
+            String excelUrl = contextPath + reportUrl + "&type=xls";
+            String footer = "<div class=\"exportlinks\">";
+            String exportProperty = this.getPropertyString("export");
+            if (exportProperty != null && exportProperty.contains("pdf")) {
+                footer = footer + "<a href=\"" + pdfUrl + "\" target=\"_blank\"><span class=\"export pdf\">PDF</span></a>";
+            }
+            if (exportProperty != null && exportProperty.contains("xls")) {
+                footer = footer + "<a href=\"" + excelUrl + "\" target=\"_blank\"><span class=\"export excel\">Excel</span></a>";
+            }
+            footer = footer + "</div>";
+            String customFooter = this.getPropertyString("customFooter");
+            if (customFooter != null) {
+                footer = footer + customFooter;
+            }
+            this.setProperty("includeFooter", footer);
+            String body = this.generateReport();
+            String result = header + body + footer;
+            return result;
+        } finally {
+            Thread.currentThread().setContextClassLoader(originalClassLoader);
         }
-        this.setProperty("includeUrl", reportUrl);
-        String contextPath = AppUtil.getRequestContextPath();
-        String cssUrl = contextPath + "/plugin/" + getClassName() + "/css/jasper.css";
-        String header = "<link rel=\"stylesheet\" href=\"" + cssUrl + "\" />";
-        String customHeader = this.getPropertyString("customHeader");
-        if (customHeader != null) {
-            header = header + customHeader;
-        }
-        this.setProperty("includeHeader", header);
-        String pdfUrl = contextPath + reportUrl + "&type=pdf";
-        String excelUrl = contextPath + reportUrl + "&type=xls";
-        String footer = "<div class=\"exportlinks\">";
-        String exportProperty = this.getPropertyString("export");
-        if (exportProperty != null && exportProperty.contains("pdf")) {
-            footer = footer + "<a href=\"" + pdfUrl + "\" target=\"_blank\"><span class=\"export pdf\">PDF</span></a>";
-        }
-        if (exportProperty != null && exportProperty.contains("xls")) {
-            footer = footer + "<a href=\"" + excelUrl + "\" target=\"_blank\"><span class=\"export excel\">Excel</span></a>";
-        }
-        footer = footer + "</div>";
-        String customFooter = this.getPropertyString("customFooter");
-        if (customFooter != null) {
-            footer = footer + customFooter;
-        }
-        this.setProperty("includeFooter", footer);
-        String body = this.generateReport();
-        String result = header + body + footer;
-        return result;
+
     }
 
     public String getJspPage() {
@@ -245,7 +250,19 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
             jrxml = jrxml.replaceAll("language=\"groovy\"", "");
         }
         ByteArrayInputStream input = new ByteArrayInputStream(jrxml.getBytes("UTF-8"));
-        JasperReport report = JasperCompileManager.compileReport((InputStream)input);
+        JasperReport report = null;
+        try {
+            report = JasperCompileManager.compileReport(input);
+        } catch (JRRuntimeException e) {
+            LogUtil.info(getClassName(), JRRuntimeException.class.getName());
+            for(Object arg : e.getArgs()) {
+                LogUtil.info("", arg.toString());
+            }
+        }
+
+        if(report == null)
+            return null;
+
         DataSource ds = null;
         Object datasource = menu.getProperty("datasource");
         if (datasource != null && datasource instanceof Map && (dsMap = (Map)datasource) != null && dsMap.containsKey("classname") && !dsMap.get("className").toString().isEmpty() && (dsProperties = dsMap.get("properties")) != null && dsProperties instanceof Map) {
@@ -262,10 +279,12 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
             LogUtil.debug(this.getClass().getName(), ("Using custom datasource " + jdbcUrl));
             ds = BasicDataSourceFactory.createDataSource((Properties)props);
         }
+
         if (ds == null) {
             LogUtil.debug(this.getClass().getName(), "Using current profile datasource");
             ds = (DataSource)AppUtil.getApplicationContext().getBean("setupDataSource");
         }
+
         if (ds != null) {
             HashMap hm = new HashMap();
             Object[] parameters = (Object[])menu.getProperty("parameters");
@@ -283,20 +302,13 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
                     filepath.mkdirs();
                 }
                 virtualizer = new JRSwapFileVirtualizer(300, new JRSwapFile(filepath.getAbsolutePath(), 4096, 100), true);
-                hm.put("REPORT_VIRTUALIZER", (JRSwapFileVirtualizer)virtualizer);
+                hm.put("REPORT_VIRTUALIZER", virtualizer);
             }
-            Connection conn = null;
-            JasperPrint print = null;
-            try {
-                conn = ds.getConnection();
-                print = JasperFillManager.fillReport((JasperReport)report, hm, (Connection)conn);
+
+            try(Connection conn = ds.getConnection()) {
+                JasperPrint print = JasperFillManager.fillReport(report, hm, conn);
+                return print;
             }
-            finally {
-                if (conn != null) {
-                    conn.close();
-                }
-            }
-            return print;
         }
         return null;
     }
@@ -304,14 +316,14 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
     protected String generateReport() {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         try {
-            JasperPrint print = this.getReport(this);
+            JasperPrint print = getReport(this);
             if (print != null) {
                 String menuId = this.getPropertyString("customId");
                 if (menuId == null || menuId.trim().isEmpty()) {
                     menuId = this.getPropertyString("id");
                 }
                 LogUtil.debug(this.getClass().getName(), ("Generating HTML report for " + menuId));
-                JRHtmlExporter jrHtmlExporter = new JRHtmlExporter();
+                JRExporter jrHtmlExporter = new HtmlExporter();
                 jrHtmlExporter.setParameter(JRHtmlExporterParameter.JASPER_PRINT, print);
                 HttpServletRequest request = WorkflowUtil.getHttpServletRequest();
                 if (request != null) {
@@ -326,7 +338,7 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
             }
         }
         catch (Exception e) {
-            LogUtil.error(this.getClass().getName(), (Throwable)e, "");
+            LogUtil.error(getClassName(), e, e.getMessage());
             HashMap<String, Exception> model = new HashMap<String, Exception>();
             model.put("exception", e);
             PluginManager pluginManager = (PluginManager)AppUtil.getApplicationContext().getBean("pluginManager");
@@ -366,7 +378,7 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
                     response.setHeader("Content-Disposition", "inline; filename=" + menuId + ".html");
                 }
                 LogUtil.debug(this.getClass().getName(), ("Generating HTML report for " + menuId));
-                JRHtmlExporter jrHtmlExporter = new JRHtmlExporter();
+                JRExporter jrHtmlExporter = new HtmlExporter();
                 jrHtmlExporter.setParameter(JRHtmlExporterParameter.JASPER_PRINT, print);
                 if (request != null) {
                     request.getSession().setAttribute("net.sf.jasperreports.j2ee.jasper_print", print);
@@ -381,57 +393,44 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
     }
 
     protected void generateImage(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        byte[] imageData = null;
-        String imageMimeType = null;
         String imageName = request.getParameter("image");
-        if ("px".equals(imageName)) {
-            InputStream input = null;
-            try {
-                PluginManager pluginManager = (PluginManager)AppUtil.getApplicationContext().getBean("pluginManager");
-                input = pluginManager.getPluginResource(this.getClass().getName(), "net/sf/jasperreports/engine/images/pixel.GIF");
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                byte[] bbuf = new byte[65536];
-                int length = 0;
-                while ((length = input.read(bbuf)) != -1) {
-                    stream.write(bbuf, 0, length);
-                }
-                imageData = stream.toByteArray();
-                imageMimeType = "image/gif";
-            }
-            catch (Exception e) {
-                throw new ServletException((Throwable)e);
-            }
-            finally {
-                if (input != null) {
-                    input.close();
-                }
-            }
-        }
+//        if ("px".equals(imageName)) {
+//            PluginManager pluginManager = (PluginManager)AppUtil.getApplicationContext().getBean("pluginManager");
+//
+//            try(InputStream input = pluginManager.getPluginResource(this.getClass().getName(), "net/sf/jasperreports/engine/images/pixel.GIF");) {
+//                ByteArrayOutputStream stream = new ByteArrayOutputStream();
+//                byte[] bbuf = new byte[65536];
+//                int length = 0;
+//                while ((length = input.read(bbuf)) != -1) {
+//                    stream.write(bbuf, 0, length);
+//                }
+//                byte[] imageData = stream.toByteArray();
+//            } catch (Exception e) {
+//                throw new ServletException(e);
+//            }
+//        }
+
         List<JasperPrint> jasperPrintList = BaseHttpServlet.getJasperPrintList((HttpServletRequest)request);
         if (jasperPrintList == null) {
             throw new ServletException("No JasperPrint documents found on the HTTP session.");
         }
-        JRPrintImage image = JRHtmlExporter.getImage(jasperPrintList, imageName);
-        JRRenderable renderer = image.getRenderer();
-        if (renderer.getType() == 1) {
-            renderer = new JRWrappingSvgRenderer(renderer, new Dimension(image.getWidth(), image.getHeight()), ModeEnum.OPAQUE == image.getModeValue() ? image.getBackcolor() : null);
-        }
-        imageMimeType = JRTypeSniffer.getImageMimeType(renderer.getImageType());
+
+        JRPrintImage image = HtmlExporter.getImage(jasperPrintList, imageName);
+        JRRenderable renderer = image.getRenderable();
         try {
-            imageData = renderer.getImageData();
-        }
-        catch (JRException e) {
-            throw new ServletException((Throwable)e);
-        }
-        if (imageData != null && imageData.length > 0) {
-            if (imageMimeType != null) {
-                response.setHeader("Content-Type", imageMimeType);
+            byte[] imageData = renderer.getImageData();
+
+            if (imageData != null && imageData.length > 0) {
+                ImageTypeEnum mimeType = JRTypeSniffer.getImageTypeValue(imageData);
+                response.setHeader("Content-Type", mimeType.getMimeType());
+                response.setContentLength(imageData.length);
+                ServletOutputStream ouputStream = response.getOutputStream();
+                ouputStream.write(imageData, 0, imageData.length);
+                ouputStream.flush();
+                ouputStream.close();
             }
-            response.setContentLength(imageData.length);
-            ServletOutputStream ouputStream = response.getOutputStream();
-            ouputStream.write(imageData, 0, imageData.length);
-            ouputStream.flush();
-            ouputStream.close();
+        } catch (JRException e) {
+            e.printStackTrace();
         }
     }
 }
