@@ -44,9 +44,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class JsonJasperReportsMenu extends UserviewMenu implements PluginWebSupport {
+public class DataListJasperReportsMenu extends UserviewMenu implements PluginWebSupport {
     public String getName() {
-        return "JSON Jasper Reports";
+        return "DataList Jasper Reports";
     }
 
     public String getVersion() {
@@ -74,46 +74,52 @@ public class JsonJasperReportsMenu extends UserviewMenu implements PluginWebSupp
     }
 
     public String getRenderPage() {
-        AppDefinition appDef = AppUtil.getCurrentAppDefinition();
-        String menuId = this.getPropertyString("customId");
-        if (menuId == null || menuId.trim().isEmpty()) {
-            menuId = this.getPropertyString("id");
-        }
-        String reportUrl = "/web/json/plugin/" + getClassName() + "/service?action=report&appId=" + appDef.getId() + "&appVersion=" + appDef.getVersion() + "&userviewId=" + this.getUserview().getPropertyString("id") + "&menuId=" + menuId;
-        if (!"true".equals(this.getRequestParameter("isPreview"))) {
-            for (String key : ((Map<String, String>)this.getRequestParameters()).keySet()) {
-                if (key.matches("appId|appVersion|userviewId|menuId|isPreview|embed|contextPath")) continue;
-                reportUrl = StringUtil.addParamsToUrl(reportUrl, key, this.getRequestParameterString(key));
+        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(this.getClass().getClassLoader());
+        try {
+            AppDefinition appDef = AppUtil.getCurrentAppDefinition();
+            String menuId = this.getPropertyString("customId");
+            if (menuId == null || menuId.trim().isEmpty()) {
+                menuId = this.getPropertyString("id");
             }
+            String reportUrl = "/web/json/plugin/" + getClassName() + "/service?action=report&appId=" + appDef.getId() + "&appVersion=" + appDef.getVersion() + "&userviewId=" + this.getUserview().getPropertyString("id") + "&menuId=" + menuId;
+            if (!"true".equals(this.getRequestParameter("isPreview"))) {
+                for (String key : ((Map<String, String>)this.getRequestParameters()).keySet()) {
+                    if (key.matches("appId|appVersion|userviewId|menuId|isPreview|embed|contextPath")) continue;
+                    reportUrl = StringUtil.addParamsToUrl(reportUrl, key, this.getRequestParameterString(key));
+                }
+            }
+            this.setProperty("includeUrl", reportUrl);
+            String contextPath = AppUtil.getRequestContextPath();
+            String cssUrl = contextPath + "/plugin/" + getClassName() + "/css/jasper.css";
+            String header = "<link rel=\"stylesheet\" href=\"" + cssUrl + "\" />";
+            String customHeader = this.getPropertyString("customHeader");
+            if (customHeader != null) {
+                header = header + customHeader;
+            }
+            this.setProperty("includeHeader", header);
+            String pdfUrl = contextPath + reportUrl + "&type=pdf";
+            String excelUrl = contextPath + reportUrl + "&type=xls";
+            String footer = "<div class=\"exportlinks\">";
+            String exportProperty = this.getPropertyString("export");
+            if (exportProperty != null && exportProperty.contains("pdf")) {
+                footer = footer + "<a href=\"" + pdfUrl + "\" target=\"_blank\"><span class=\"export pdf\">PDF</span></a>";
+            }
+            if (exportProperty != null && exportProperty.contains("xls")) {
+                footer = footer + "<a href=\"" + excelUrl + "\" target=\"_blank\"><span class=\"export excel\">Excel</span></a>";
+            }
+            footer = footer + "</div>";
+            String customFooter = this.getPropertyString("customFooter");
+            if (customFooter != null) {
+                footer = footer + customFooter;
+            }
+            this.setProperty("includeFooter", footer);
+            String body = this.generateReport();
+            String result = header + body + footer;
+            return result;
+        } finally {
+            Thread.currentThread().setContextClassLoader(originalClassLoader);
         }
-        this.setProperty("includeUrl", reportUrl);
-        String contextPath = AppUtil.getRequestContextPath();
-        String cssUrl = contextPath + "/plugin/" + getClassName() + "/css/jasper.css";
-        String header = "<link rel=\"stylesheet\" href=\"" + cssUrl + "\" />";
-        String customHeader = this.getPropertyString("customHeader");
-        if (customHeader != null) {
-            header = header + customHeader;
-        }
-        this.setProperty("includeHeader", header);
-        String pdfUrl = contextPath + reportUrl + "&type=pdf";
-        String excelUrl = contextPath + reportUrl + "&type=xls";
-        String footer = "<div class=\"exportlinks\">";
-        String exportProperty = this.getPropertyString("export");
-        if (exportProperty != null && exportProperty.contains("pdf")) {
-            footer = footer + "<a href=\"" + pdfUrl + "\" target=\"_blank\"><span class=\"export pdf\">PDF</span></a>";
-        }
-        if (exportProperty != null && exportProperty.contains("xls")) {
-            footer = footer + "<a href=\"" + excelUrl + "\" target=\"_blank\"><span class=\"export excel\">Excel</span></a>";
-        }
-        footer = footer + "</div>";
-        String customFooter = this.getPropertyString("customFooter");
-        if (customFooter != null) {
-            footer = footer + customFooter;
-        }
-        this.setProperty("includeFooter", footer);
-        String body = this.generateReport();
-        String result = header + body + footer;
-        return result;
     }
 
     public String getJspPage() {
@@ -141,7 +147,7 @@ public class JsonJasperReportsMenu extends UserviewMenu implements PluginWebSupp
         String appId = appDef.getId();
         String appVersion = appDef.getVersion().toString();
         Object[] arguments = new Object[]{appId, appVersion, appId, appVersion, appId, appVersion};
-        String json = AppUtil.readPluginResource(this.getClass().getName(), "/properties/jsonJasperReports.json", (Object[])arguments, (boolean)true, "message/jasperReports");
+        String json = AppUtil.readPluginResource(this.getClass().getName(), "/properties/dataListJasperReports.json", arguments, true, "message/jasperReports");
         return json;
     }
 
@@ -160,7 +166,6 @@ public class JsonJasperReportsMenu extends UserviewMenu implements PluginWebSupp
                 String action = request.getParameter("action");
                 String imageName = request.getParameter("image");
                 if ("report".equals(action)) {
-                    UserviewMenu selectedMenu = null;
                     String appId = request.getParameter("appId");
                     String appVersion = request.getParameter("appVersion");
                     String userviewId = request.getParameter("userviewId");
@@ -175,7 +180,7 @@ public class JsonJasperReportsMenu extends UserviewMenu implements PluginWebSupp
                         AppService appService = (AppService)AppUtil.getApplicationContext().getBean("appService");
                         appDef = appService.getAppDefinition(appId, appVersion.toString());
                     }
-                    selectedMenu = json != null && !json.trim().isEmpty() ? findUserviewMenuFromPreview(json, menuId, contextPath, parameterMap, key) : this.findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap);
+                    UserviewMenu selectedMenu = json != null && !json.trim().isEmpty() ? findUserviewMenuFromPreview(json, menuId, contextPath, parameterMap, key) : this.findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap);
                     if (selectedMenu != null) {
                         this.generateReport(appDef, selectedMenu, type, output, request, response);
                     }
@@ -214,7 +219,7 @@ public class JsonJasperReportsMenu extends UserviewMenu implements PluginWebSupp
         UserviewMenu selectedMenu = null;
         UserviewService userviewService = (UserviewService)AppUtil.getApplicationContext().getBean("userviewService");
         UserviewDefinitionDao userviewDefinitionDao = (UserviewDefinitionDao)AppUtil.getApplicationContext().getBean("userviewDefinitionDao");
-        UserviewDefinition userviewDef = (UserviewDefinition)userviewDefinitionDao.loadById(userviewId, appDef);
+        UserviewDefinition userviewDef = userviewDefinitionDao.loadById(userviewId, appDef);
         if (userviewDef != null) {
             String json = userviewDef.getJson();
             Userview userview = userviewService.createUserview(json, menuId, false, contextPath, parameterMap, key, Boolean.valueOf(true));
@@ -242,8 +247,6 @@ public class JsonJasperReportsMenu extends UserviewMenu implements PluginWebSupp
     }
 
     protected JasperPrint getReport(AppDefinition appDef, UserviewMenu menu) throws IOException, JRException {
-        Map dsMap;
-        Object dsProperties;
         String jrxml = menu.getPropertyString("jrxml");
         if (!JasperCompileManager.class.getClassLoader().equals(UserviewMenu.class.getClassLoader())) {
             jrxml = jrxml.replaceAll("language=\"groovy\"", "");

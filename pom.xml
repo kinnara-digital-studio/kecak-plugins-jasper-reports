@@ -111,20 +111,20 @@
 		    <groupId>net.sf.jasperreports</groupId>
 		    <artifactId>jasperreports</artifactId>
             <version>6.5.0</version>
-		    <exclusions>
-		        <exclusion>
-                    <artifactId>xerces</artifactId>
-                    <groupId>xercesImpl</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>xerces</artifactId>
-                    <groupId>xmlParserAPIs</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>xml-apis</artifactId>
-                    <groupId>xml-apis</groupId>
-                </exclusion>
-		    </exclusions>
+		    <!--<exclusions>-->
+		        <!--<exclusion>-->
+                    <!--<artifactId>xerces</artifactId>-->
+                    <!--<groupId>xercesImpl</groupId>-->
+                <!--</exclusion>-->
+                <!--<exclusion>-->
+                    <!--<artifactId>xerces</artifactId>-->
+                    <!--<groupId>xmlParserAPIs</groupId>-->
+                <!--</exclusion>-->
+                <!--<exclusion>-->
+                    <!--<artifactId>xml-apis</artifactId>-->
+                    <!--<groupId>xml-apis</groupId>-->
+                <!--</exclusion>-->
+		    <!--</exclusions>-->
 		</dependency>
         <dependency>
             <groupId>javax.servlet</groupId>

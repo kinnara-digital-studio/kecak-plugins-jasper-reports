@@ -114,7 +114,6 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
         } finally {
             Thread.currentThread().setContextClassLoader(originalClassLoader);
         }
-
     }
 
     public String getJspPage() {
