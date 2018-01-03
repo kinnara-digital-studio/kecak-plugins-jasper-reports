@@ -154,52 +154,58 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
      */
     @Override
     public void webService(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        block9 : {
-            ServletOutputStream output = response.getOutputStream();
-            try {
-                String action = request.getParameter("action");
-                String imageName = request.getParameter("image");
-                if ("report".equals(action)) {
-                    UserviewMenu selectedMenu = null;
-                    String appId = request.getParameter("appId");
-                    String appVersion = request.getParameter("appVersion");
-                    String userviewId = request.getParameter("userviewId");
-                    String key = request.getParameter("key");
-                    String menuId = request.getParameter("menuId");
-                    String type = request.getParameter("type");
-                    String contextPath = request.getContextPath();
-                    Map parameterMap = request.getParameterMap();
-                    String json = request.getParameter("json");
-                    AppDefinition appDef = null;
-                    if (appId != null && appVersion != null) {
-                        AppService appService = (AppService)AppUtil.getApplicationContext().getBean("appService");
-                        appDef = appService.getAppDefinition(appId, appVersion.toString());
-                    }
-                    selectedMenu = json != null && !json.trim().isEmpty() ? findUserviewMenuFromPreview(json, menuId, contextPath, parameterMap, key) : this.findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap);
-                    if (selectedMenu != null) {
-                        this.generateReport(selectedMenu, type, output, request, response);
-                    }
-                    break block9;
-                }
-                if (imageName != null && !imageName.trim().isEmpty()) {
-                    this.generateImage(request, response);
-                    break block9;
-                }
-                response.setStatus(204);
-            }
-            catch (Exception ex) {
-                LogUtil.error(this.getClass().getName(), (Throwable)ex, "");
-                HashMap<String, Object> model = new HashMap<String, Object>();
-                model.put("request", request);
-                model.put("exception", ex);
-                PluginManager pluginManager = (PluginManager)AppUtil.getApplicationContext().getBean("pluginManager");
-                String content = pluginManager.getPluginFreeMarkerTemplate(model, this.getClass().getName(), "/templates/jasperError.ftl", null);
-                response.setContentType("text/html");
-                output.write(content.getBytes("UTF-8"));
-            }
-            finally {
-                output.close();
-            }
+    	ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(this.getClass().getClassLoader());
+        try {
+	    	block9 : {
+	            ServletOutputStream output = response.getOutputStream();
+	            try {
+	                String action = request.getParameter("action");
+	                String imageName = request.getParameter("image");
+	                if ("report".equals(action)) {
+	                    UserviewMenu selectedMenu = null;
+	                    String appId = request.getParameter("appId");
+	                    String appVersion = request.getParameter("appVersion");
+	                    String userviewId = request.getParameter("userviewId");
+	                    String key = request.getParameter("key");
+	                    String menuId = request.getParameter("menuId");
+	                    String type = request.getParameter("type");
+	                    String contextPath = request.getContextPath();
+	                    Map parameterMap = request.getParameterMap();
+	                    String json = request.getParameter("json");
+	                    AppDefinition appDef = null;
+	                    if (appId != null && appVersion != null) {
+	                        AppService appService = (AppService)AppUtil.getApplicationContext().getBean("appService");
+	                        appDef = appService.getAppDefinition(appId, appVersion.toString());
+	                    }
+	                    selectedMenu = json != null && !json.trim().isEmpty() ? findUserviewMenuFromPreview(json, menuId, contextPath, parameterMap, key) : this.findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap);
+	                    if (selectedMenu != null) {
+	                        this.generateReport(selectedMenu, type, output, request, response);
+	                    }
+	                    break block9;
+	                }
+	                if (imageName != null && !imageName.trim().isEmpty()) {
+	                    this.generateImage(request, response);
+	                    break block9;
+	                }
+	                response.setStatus(204);
+	            }
+	            catch (Exception ex) {
+	                LogUtil.error(this.getClass().getName(), (Throwable)ex, "");
+	                HashMap<String, Object> model = new HashMap<String, Object>();
+	                model.put("request", request);
+	                model.put("exception", ex);
+	                PluginManager pluginManager = (PluginManager)AppUtil.getApplicationContext().getBean("pluginManager");
+	                String content = pluginManager.getPluginFreeMarkerTemplate(model, this.getClass().getName(), "/templates/jasperError.ftl", null);
+	                response.setContentType("text/html");
+	                output.write(content.getBytes("UTF-8"));
+	            }
+	            finally {
+	                output.close();
+	            }
+	        }
+        } finally {
+            Thread.currentThread().setContextClassLoader(originalClassLoader);
         }
     }
 
@@ -254,7 +260,7 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
         try {
             report = JasperCompileManager.compileReport(input);
         } catch (JRRuntimeException e) {
-            LogUtil.info(getClassName(), JRRuntimeException.class.getName());
+            LogUtil.info(getClassName(), e.getMessage());
             for(Object arg : e.getArgs()) {
                 LogUtil.info("", arg.toString());
             }
