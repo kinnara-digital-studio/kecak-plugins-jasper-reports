@@ -324,7 +324,8 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
         try {
             JasperPrint print = getReport(this);
             if (print != null) {
-                String menuId = this.getPropertyString("customId");
+            	String menuId = this.getPropertyString("fileName").isEmpty()? 
+                		this.getPropertyString("customId") : this.getPropertyString("fileName");
                 if (menuId == null || menuId.trim().isEmpty()) {
                     menuId = this.getPropertyString("id");
                 }
@@ -355,7 +356,8 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
 
     protected void generateReport(UserviewMenu menu, String type, OutputStream output, HttpServletRequest request, HttpServletResponse response) throws Exception, IOException, JRException, BeansException, UnsupportedEncodingException, SQLException {
         JasperPrint print;
-        String menuId = menu.getPropertyString("customId");
+        String menuId = menu.getPropertyString("fileName").isEmpty()? 
+        		menu.getPropertyString("customId") : menu.getPropertyString("fileName");
         if (menuId == null || menuId.trim().isEmpty()) {
             menuId = menu.getPropertyString("id");
         }
@@ -365,6 +367,7 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
                     response.setHeader("Content-Type", "application/pdf");
                     response.setHeader("Content-Disposition", "inline; filename=" + menuId + ".pdf");
                 }
+                LogUtil.info(this.getClass().getName(), ("Generating PDF report for " + menuId));
                 LogUtil.debug(this.getClass().getName(), ("Generating PDF report for " + menuId));
                 JasperExportManager.exportReportToPdfStream(print, output);
             } else if ("xls".equals(type)) {

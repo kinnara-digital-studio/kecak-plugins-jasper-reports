@@ -338,7 +338,8 @@ public class DataListJasperReportsMenu extends UserviewMenu implements PluginWeb
 
     protected void generateReport(AppDefinition appDef, UserviewMenu menu, String type, OutputStream output, HttpServletRequest request, HttpServletResponse response) throws Exception, IOException, JRException, BeansException, UnsupportedEncodingException, SQLException {
         JasperPrint print;
-        String menuId = menu.getPropertyString("customId");
+        String menuId = menu.getPropertyString("fileName")!=""? 
+        		menu.getPropertyString("fileName") : menu.getPropertyString("customId");
         if (menuId == null || menuId.trim().isEmpty()) {
             menuId = menu.getPropertyString("id");
         }
