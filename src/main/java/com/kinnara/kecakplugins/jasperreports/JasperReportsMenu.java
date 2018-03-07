@@ -37,6 +37,7 @@ import java.io.*;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
+import org.joget.apps.app.dao.AppDefinitionDao;
 
 public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport {
     public String getName() {
@@ -174,9 +175,9 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
 	                    Map parameterMap = request.getParameterMap();
 	                    String json = request.getParameter("json");
 	                    AppDefinition appDef = null;
-	                    if (appId != null && appVersion != null) {
-	                        AppService appService = (AppService)AppUtil.getApplicationContext().getBean("appService");
-	                        appDef = appService.getAppDefinition(appId, appVersion.toString());
+	                    if (appId != null) {
+                                AppDefinitionDao appDefDao = (AppDefinitionDao) AppUtil.getApplicationContext().getBean("appDefinitionDao");
+	                        appDef = appDefDao.findLatestVersions(null, appId, null, null, null, null, null).iterator().next();
 	                    }
 	                    selectedMenu = json != null && !json.trim().isEmpty() ? findUserviewMenuFromPreview(json, menuId, contextPath, parameterMap, key) : this.findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap);
 	                    if (selectedMenu != null) {
