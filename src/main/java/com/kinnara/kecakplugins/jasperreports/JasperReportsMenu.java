@@ -141,7 +141,7 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
         AppDefinition appDef = AppUtil.getCurrentAppDefinition();
         String appId = appDef.getId();
         String appVersion = appDef.getVersion().toString();
-        Object[] arguments = new Object[]{appId, appVersion, appId, appVersion, appId, appVersion};
+        Object[] arguments = new Object[]{JasperReportsJdbcOptions.class.getName()};
         String json = AppUtil.readPluginResource(this.getClass().getName(), "/properties/jasperReports.json", arguments, true, "message/jasperReports");
         return json;
     }

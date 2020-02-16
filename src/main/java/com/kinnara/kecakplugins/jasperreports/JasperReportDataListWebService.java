@@ -23,11 +23,9 @@ import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
+@Deprecated
 public class JasperReportDataListWebService extends ExtDefaultPlugin implements PluginWebSupport {
     private Map<String, DataList> datalistCache = new HashMap<>();
 
@@ -54,24 +52,24 @@ public class JasperReportDataListWebService extends ExtDefaultPlugin implements 
     @Override
     public void webService(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String method = request.getMethod();
-        String appId = request.getParameter("appId");
-        String appVersion = request.getParameter("appVersion");
         String dataListId = request.getParameter("dataListId");
+
+        AppDefinition appDefinition = AppUtil.getCurrentAppDefinition();
+
         DataList dataList;
 
         if(!"GET".equals(method)) {
             response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "Use GET method");
-        } else if(appId == null || appId.isEmpty()) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Parameter appId not provided");
-        } else if(appVersion == null || appVersion.isEmpty()) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Parameter appVersion not provided");
         } else if(dataListId == null || dataListId.isEmpty()) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Parameter dataListId not provided");
-        } else if(null != (dataList = getDataList(appId, appVersion, dataListId))) {
+        } else if(null != (dataList = getDataList(appDefinition.getAppId(), appDefinition.getVersion().toString(), dataListId))) {
             getCollectFilters(((Map<String, Object>)request.getParameterMap()), dataList);
 
-            DataListCollection<Map<String, String>> collections = dataList.getRows();
-            JSONArray data        = new JSONArray();
+            DataListCollection<Map<String, String>> collections = Optional.ofNullable(dataList.getRows()).orElseGet(DataListCollection::new);
+
+            LogUtil.info(getClass().getName(), "datalist result : " + new JSONArray(collections).toString());
+
+            JSONArray data = new JSONArray();
             for(Map<String, String> row : collections) {
                 try {
                     JSONObject jsonRow = new JSONObject();
@@ -90,7 +88,7 @@ public class JasperReportDataListWebService extends ExtDefaultPlugin implements 
             }
             response.getWriter().write(data.toString());
         } else {
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "null DataList");
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "DataList ["+dataListId+"] not available in application ["+appDefinition.getAppId()+"] version ["+appDefinition.getVersion()+"]");
         }
     }
 

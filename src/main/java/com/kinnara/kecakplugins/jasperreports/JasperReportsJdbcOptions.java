@@ -17,7 +17,7 @@ public class JasperReportsJdbcOptions extends DefaultPlugin implements PropertyE
     }
 
     public String getDescription() {
-        return "Kecak Plugins; Artifact ID : " + getClass().getPackage().getImplementationTitle();
+        return getClass().getPackage().getImplementationTitle();
     }
 
     public PluginProperty[] getPluginProperties() {
@@ -37,7 +37,7 @@ public class JasperReportsJdbcOptions extends DefaultPlugin implements PropertyE
     }
 
     public String getPropertyOptions() {
-        String json = AppUtil.readPluginResource(getClassName(), "/properties/jasperReportsJdbcOptions.json", new Object[] { JasperReportsJdbcOptions.class.getName()}, true, "message/jasperReportsJdbcOptions");
+        String json = AppUtil.readPluginResource(getClassName(), "/properties/jasperReportsJdbcOptions.json", new Object[] { JdbcTestConnectionApi.class.getName(), getClassName() }, true, "message/jasperReportsJdbcOptions");
         return json;
     }
 

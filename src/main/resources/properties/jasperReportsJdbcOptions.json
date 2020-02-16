@@ -27,7 +27,7 @@
     buttons : [{
         name : 'testConnection',    
         label : '@@datalist.jdbcDataListBinder.testConnection@@',
-        ajax_url : '[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/com.kinnara.kecakplugins.jdbc.JdbcDataListBinder/service?action=testConnection',
+        ajax_url : '[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?action=testConnection&className=%s',
         fields : ['jdbcDriver', 'jdbcUrl', 'jdbcUser', 'jdbcPassword']
     }]
 }]

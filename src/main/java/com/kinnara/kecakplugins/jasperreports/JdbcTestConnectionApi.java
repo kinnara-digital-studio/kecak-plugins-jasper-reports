@@ -2,6 +2,7 @@ package com.kinnara.kecakplugins.jasperreports;
 
 import java.io.IOException;
 import java.sql.Connection;
+import java.util.Map;
 import java.util.Properties;
 
 import javax.servlet.ServletException;
@@ -16,12 +17,14 @@ import org.joget.apps.app.service.AppUtil;
 import org.joget.commons.util.DynamicDataSourceManager;
 import org.joget.commons.util.LogUtil;
 import org.joget.commons.util.SecurityUtil;
+import org.joget.plugin.base.DefaultPlugin;
+import org.joget.plugin.base.PluginProperty;
 import org.joget.plugin.base.PluginWebSupport;
 import org.joget.workflow.model.service.WorkflowUserManager;
 import org.joget.workflow.util.WorkflowUtil;
 import org.json.JSONObject;
 
-public class JdbcTestConnectionApi implements PluginWebSupport {
+public class JdbcTestConnectionApi extends DefaultPlugin implements PluginWebSupport {
 	private final static String MESSAGE_PATH = "/messages/JdbcTestConnectionApi";
 	
 	/**
@@ -85,5 +88,30 @@ public class JdbcTestConnectionApi implements PluginWebSupport {
         } else {
             response.setStatus(HttpServletResponse.SC_NO_CONTENT);
         }
-    }    
+    }
+
+    @Override
+    public String getName() {
+        return "JDBC Test Connection API";
+    }
+
+    @Override
+    public String getVersion() {
+        return getClass().getPackage().getImplementationVersion();
+    }
+
+    @Override
+    public String getDescription() {
+        return getClass().getPackage().getImplementationTitle();
+    }
+
+    @Override
+    public PluginProperty[] getPluginProperties() {
+        return null;
+    }
+
+    @Override
+    public Object execute(Map map) {
+        return null;
+    }
 }
