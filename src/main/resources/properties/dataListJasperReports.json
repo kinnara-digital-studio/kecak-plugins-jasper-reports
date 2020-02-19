@@ -1,74 +1,27 @@
 [
     {
-        "title" : "@@userview.jasperReports.config@@",
-        "properties" : [{
-            "name" : "id",
-            "label" : "Id",
-            "type" : "hidden"
-        },
-        {
-            "name" : "customId",
-            "label" : "@@userview.jasperReports.customId@@",
-            "type" : "textfield",
-            "regex_validation" : "^[a-zA-Z0-9_]+$",
-            "validation_message" : "@@userview.jasperReports.invalidId@@"
-        },
-        {
-            "name" : "label",
-            "label" : "@@userview.jasperReports.label@@",
-            "type" : "textfield",
-            "value" : "@@userview.jasperReports.jasperReport@@",
-            "required" :"True"
-        },
-        {
-            "name" : "output",
-            "label" : "@@userview.jasperReports.output@@",
-            "type" : "selectbox",
-            "value" : "html",
-            "options" : [
-                {
-                    "value" : "html",
-                    "label" : "HTML"
-                }
-            ]
-        },
-        {
-            "name" : "export",
-            "label" : "@@userview.jasperReports.export@@",
-            "type" : "checkbox",
-            "options" : [
-                {
-                    "value" : "pdf",
-                    "label" : "PDF"
-                },
-                {
-                    "value" : "xls",
-                    "label" : "Excel"
-                }
-            ]
-        },
-        {
-            "name" : "fileName",
-            "label" : "@@userview.jasperReports.fileName@@",
-            "type" : "textfield"
-        },
-        {
-            "name" : "jrxml",
-            "label" : "@@userview.jasperReports.jrxml@@",
-            "type" : "codeeditor",
-            "mode" : "xml"
-        },
-        {
-            "name" : "use_virtualizer",
-            "label" : "@@userview.jasperReports.use_virtualizer@@",
-            "type" : "checkbox",
-            "options" : [
-                {
-                    "value" : "true",
-                    "label" : ""
-                }
-            ]
-        }]
+        "title" : "@@userview.jasperReports.configureMenu@@",
+        "properties": [
+            {
+                "name" : "id",
+                "label" : "Id",
+                "type" : "hidden"
+            },
+            {
+                "name" : "customId",
+                "label" : "@@userview.jasperReports.customId@@",
+                "type" : "textfield",
+                "regex_validation" : "^[a-zA-Z0-9_]+$",
+                "validation_message" : "@@userview.jasperReports.invalidId@@"
+            },
+            {
+                "name": "label",
+                "label": "@@userview.jasperReports.label@@",
+                "type": "textfield",
+                "value": "@@userview.jasperReports.jasperReport@@",
+                "required": "True"
+            }
+        ]
     },
     {
         "title" : "@@userview.jasperReports.configureDataList@@",
@@ -103,6 +56,60 @@
                 "label": "@@userview.jasperReports.getJsonUrl@@",
                 "ajax_url": "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?action=getJsonUrl",
                 "fields": ["dataListId"]
+            }
+        ]
+    },
+    {
+        "title" : "@@userview.jasperReports.config@@",
+        "properties" : [
+            {
+                "name" : "output",
+                "label" : "@@userview.jasperReports.output@@",
+                "type" : "selectbox",
+                "value" : "html",
+                "options" : [
+                    {
+                        "value" : "html",
+                        "label" : "HTML"
+                    }
+                ]
+            },
+            {
+                "name" : "export",
+                "label" : "@@userview.jasperReports.export@@",
+                "type" : "checkbox",
+                "options" : [
+                    {
+                        "value" : "pdf",
+                        "label" : "PDF"
+                    },
+                    {
+                        "value" : "xls",
+                        "label" : "Excel"
+                    }
+                ]
+            },
+            {
+                "name" : "fileName",
+                "label" : "@@userview.jasperReports.fileName@@",
+                "type" : "textfield"
+            },
+            {
+                "name" : "jrxml",
+                "label" : "@@userview.jasperReports.jrxml@@",
+                "type" : "codeeditor",
+                "mode" : "xml"
+            },
+            {
+                "name" : "use_virtualizer",
+                "label" : "@@userview.jasperReports.use_virtualizer@@",
+                "type" : "checkbox",
+                "options" : [
+                    {
+                        "value" : "true",
+                        "label" : ""
+                    }
+                ]
             }
         ]
     },

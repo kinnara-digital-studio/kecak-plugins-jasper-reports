@@ -317,7 +317,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
         }
 
         String dataListId = menu.getPropertyString("dataListId");
-        Map<String, List<String>> filters = Optional.ofNullable((Object[])getProperty("dataListFilter"))
+        Map<String, List<String>> filters = Optional.ofNullable((Object[])menu.getProperty("dataListFilter"))
                 .map(Arrays::stream)
                 .orElseGet(Stream::empty)
                 .map(o -> (Map<String, Object>)o)
