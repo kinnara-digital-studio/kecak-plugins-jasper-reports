@@ -31,6 +31,7 @@ import org.joget.plugin.base.PluginManager;
 import org.joget.plugin.base.PluginWebSupport;
 import org.joget.workflow.util.WorkflowUtil;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
@@ -192,8 +193,9 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                             result.put(entry.getKey(), Arrays.asList(entry.getValue()));
                         }, Map::putAll);
 
-                JSONArray jsonArray = getDataListRow(dataListId, filters);
-                response.getWriter().write(jsonArray.toString());
+                JSONObject jsonResult = getDataListRow(dataListId, filters);
+                LogUtil.info(getClassName(), "Datalist result : " + jsonResult);
+                response.getWriter().write(jsonResult.toString());
 
                 return;
             } else if("getJsonUrl".equals(action)) {
@@ -339,8 +341,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                         })
                 );
 
-        JSONArray jsonResult = getDataListRow(dataListId, filters);
-        LogUtil.info(getClassName(), "jsonResult ["+jsonResult.toString()+"]");
+        JSONObject jsonResult = getDataListRow(dataListId, filters);
         JsonDataSource ds = new JsonDataSource(new ByteArrayInputStream(jsonResult.toString().getBytes()));
         JasperPrint print = JasperFillManager.fillReport(report, hm, ds);
         return print;
@@ -494,7 +495,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
      * @param dataListId
      * @return
      */
-    private JSONArray getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters) throws KecakReportException {
+    private JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters) throws KecakReportException {
 
         DataList dataList = getDataList(dataListId);
         getCollectFilters(dataList, filters);
@@ -513,7 +514,15 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                     }
                 });
 
-        return jsonArrayData;
+
+        JSONObject jsonResult = new JSONObject();
+        try {
+            jsonResult.put("data", jsonArrayData);
+        } catch (JSONException e) {
+            throw new KecakReportException("Error retrieving data", e);
+        }
+
+        return jsonResult;
     }
 
     /**
