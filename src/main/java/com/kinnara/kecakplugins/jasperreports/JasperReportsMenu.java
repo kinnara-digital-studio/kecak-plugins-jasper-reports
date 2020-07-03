@@ -10,10 +10,10 @@ import net.sf.jasperreports.engine.util.JRSwapFile;
 import net.sf.jasperreports.engine.util.JRTypeSniffer;
 import net.sf.jasperreports.j2ee.servlets.BaseHttpServlet;
 import org.apache.commons.dbcp.BasicDataSourceFactory;
+import org.joget.apps.app.dao.AppDefinitionDao;
 import org.joget.apps.app.dao.UserviewDefinitionDao;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.UserviewDefinition;
-import org.joget.apps.app.service.AppService;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.userview.model.Userview;
 import org.joget.apps.userview.model.UserviewCategory;
@@ -37,11 +37,10 @@ import java.io.*;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
-import org.joget.apps.app.dao.AppDefinitionDao;
 
 public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport {
     public String getName() {
-        return "Jasper Reports";
+        return getClass().getName();
     }
 
     public String getVersion() {
@@ -49,11 +48,7 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
     }
 
     public String getDescription() {
-        return "Kecak Plugins; Artifact ID : " + getClass().getPackage().getImplementationTitle();
-    }
-
-    public PluginProperty[] getPluginProperties() {
-        return null;
+        return getClass().getPackage().getImplementationTitle();
     }
 
     public Object execute(Map properties) {
@@ -130,7 +125,7 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
     }
 
     public String getLabel() {
-        return getName();
+        return "JDBC Jasper";
     }
 
     public String getClassName() {

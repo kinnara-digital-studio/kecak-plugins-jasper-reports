@@ -49,7 +49,7 @@ import java.util.stream.Stream;
 
 public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport {
     public String getName() {
-        return "DataList Jasper";
+        return getClass().getName();
     }
 
     @Override
@@ -143,7 +143,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
 
     @Override
     public String getLabel() {
-        return getName();
+        return "DataList Jasper";
     }
 
     @Override
