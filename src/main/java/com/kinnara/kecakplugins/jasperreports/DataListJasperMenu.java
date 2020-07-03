@@ -475,15 +475,15 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
      */
     private DataList getDataList(String datalistId) throws KecakReportException {
         ApplicationContext appContext = AppUtil.getApplicationContext();
-        AppService appService = (AppService) appContext.getBean("appService");
         AppDefinition appDef = AppUtil.getCurrentAppDefinition();
 
         DataListService dataListService = (DataListService) appContext.getBean("dataListService");
         DatalistDefinitionDao datalistDefinitionDao = (DatalistDefinitionDao) appContext.getBean("datalistDefinitionDao");
-        DatalistDefinition datalistDefinition    = datalistDefinitionDao.loadById(datalistId, appDef);
+        DatalistDefinition datalistDefinition = datalistDefinitionDao.loadById(datalistId, appDef);
 
         return Optional.ofNullable(datalistDefinition)
                 .map(DatalistDefinition::getJson)
+                .map(it -> AppUtil.processHashVariable(it, null, null, null))
                 .map(dataListService::fromJson)
                 .orElseThrow(() -> new KecakReportException("DataList [" + datalistId + "] not found"));
     }
