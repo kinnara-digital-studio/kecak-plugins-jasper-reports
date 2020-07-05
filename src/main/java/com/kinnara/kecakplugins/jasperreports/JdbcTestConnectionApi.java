@@ -24,6 +24,7 @@ import org.joget.workflow.model.service.WorkflowUserManager;
 import org.joget.workflow.util.WorkflowUtil;
 import org.json.JSONObject;
 
+@Deprecated
 public class JdbcTestConnectionApi extends DefaultPlugin implements PluginWebSupport {
 	private final static String MESSAGE_PATH = "/messages/JdbcTestConnectionApi";
 	
@@ -92,7 +93,7 @@ public class JdbcTestConnectionApi extends DefaultPlugin implements PluginWebSup
 
     @Override
     public String getName() {
-        return "JDBC Test Connection API";
+        return getClass().getName();
     }
 
     @Override

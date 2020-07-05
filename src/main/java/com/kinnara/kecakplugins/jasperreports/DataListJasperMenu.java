@@ -1,5 +1,6 @@
 package com.kinnara.kecakplugins.jasperreports;
 
+import com.kinnara.kecakplugins.jasperreports.exception.ApiException;
 import com.kinnara.kecakplugins.jasperreports.exception.KecakReportException;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JsonDataSource;
@@ -16,7 +17,6 @@ import org.joget.apps.app.dao.UserviewDefinitionDao;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.DatalistDefinition;
 import org.joget.apps.app.model.UserviewDefinition;
-import org.joget.apps.app.service.AppService;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.datalist.model.*;
 import org.joget.apps.datalist.service.DataListService;
@@ -42,8 +42,10 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -153,9 +155,6 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
 
     @Override
     public String getPropertyOptions() {
-        AppDefinition appDef = AppUtil.getCurrentAppDefinition();
-        String appId = appDef.getId();
-        String appVersion = appDef.getVersion().toString();
         Object[] arguments = new Object[]{ getClassName() };
         String json = AppUtil.readPluginResource(getClassName(), "/properties/dataListJasperReports.json", arguments, true, "message/jasperReports");
         return json;
@@ -170,36 +169,32 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
      */
     @Override
     public void webService(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        LogUtil.info(getClassName(), "Executing web service");
+        LogUtil.info(getClass().getName(), "Executing JSON Rest API [" + request.getRequestURI() + "] in method [" + request.getMethod() + "] as [" + WorkflowUtil.getCurrentUsername() + "]");
 
         try {
-            String action = request.getParameter("action");
-            String imageName = request.getParameter("image");
+            String action = getRequiredParameter(request, "action");
             if("rows".equals(action) ) {
                 boolean isAdmin = WorkflowUtil.isCurrentUserInRole(WorkflowUtil.ROLE_ADMIN);
                 if (!isAdmin) {
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "User [" + WorkflowUtil.getCurrentUsername() + "] is not admin");
-                    return;
+                    throw new ApiException(HttpServletResponse.SC_UNAUTHORIZED, "User [" + WorkflowUtil.getCurrentUsername() + "] is not admin");
                 }
 
-                String dataListId = request.getParameter("dataListId");
+                String dataListId = getRequiredParameter(request, "dataListId");
 
                 Map<String, List<String>> filters = Optional.of(request.getParameterMap())
                         .map(m -> (Map<String, String[]>)m)
                         .map(Map::entrySet)
                         .map(Collection::stream)
                         .orElseGet(Stream::empty)
-                        .collect(HashMap::new, (result, entry) -> {
-                            result.put(entry.getKey(), Arrays.asList(entry.getValue()));
-                        }, Map::putAll);
+                        .collect(Collectors.toMap(Map.Entry::getKey, entry -> Arrays.asList(entry.getValue())));
 
                 JSONObject jsonResult = getDataListRow(dataListId, filters);
-                LogUtil.info(getClassName(), "Datalist result : " + jsonResult);
+                LogUtil.info(getClassName(), "DataList result : " + jsonResult);
                 response.getWriter().write(jsonResult.toString());
 
                 return;
             } else if("getJsonUrl".equals(action)) {
-                String dataListId = request.getParameter("dataListId");
+                String dataListId = getRequiredParameter(request, "dataListId");
                 StringBuilder url = new StringBuilder(request.getRequestURL());
                 url.append("?action=rows&dataListId=").append(dataListId);
 
@@ -209,19 +204,19 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 response.getWriter().write(jsonObject.toString());
                 return;
             } else if ("report".equals(action)) {
-                String userviewId = request.getParameter("userviewId");
-                String key = request.getParameter("key");
-                String menuId = request.getParameter("menuId");
-                String type = request.getParameter("type");
+                String userviewId = getRequiredParameter(request, "userviewId");
+                String key = getRequiredParameter(request, "key");
+                String menuId = getRequiredParameter(request, "menuId");
+                String type = getRequiredParameter(request, "type");
+                String json = getOptionalParameter(request, "json", "");
                 String contextPath = request.getContextPath();
                 Map parameterMap = request.getParameterMap();
-                String json = request.getParameter("json");
 
                 AppDefinition appDef = AppUtil.getCurrentAppDefinition();
 
-                UserviewMenu selectedMenu = Optional.ofNullable(json)
+                UserviewMenu selectedMenu = Optional.of(json)
                         .map(String::trim)
-                        .filter(s -> !s.isEmpty())
+                        .filter(not(String::isEmpty))
                         .map(s -> findUserviewMenuFromPreview(s, menuId, contextPath, parameterMap, key))
                         .orElse(findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap));
 
@@ -232,23 +227,27 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 return;
             }
 
-            if (imageName != null && !imageName.trim().isEmpty()) {
+            String imageName = getOptionalParameter(request, "image", "");
+            if (!imageName.trim().isEmpty()) {
                 this.generateImage(request, response);
                 return;
             }
 
-            response.setStatus(204);
-            return;
+            response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+        } catch (ApiException ex) {
+            LogUtil.error(this.getClass().getName(), ex, ex.getMessage());
+            response.sendError(ex.getErrorCode(), ex.getMessage());
+
         } catch (Exception ex) {
-            LogUtil.error(this.getClass().getName(), (Throwable)ex, "");
-            HashMap<String, Object> model = new HashMap<String, Object>();
+            LogUtil.error(this.getClass().getName(), ex, ex.getMessage());
+
+            HashMap<String, Object> model = new HashMap<>();
             model.put("request", request);
             model.put("exception", ex);
             PluginManager pluginManager = (PluginManager)AppUtil.getApplicationContext().getBean("pluginManager");
-            String content = pluginManager.getPluginFreeMarkerTemplate(model, this.getClass().getName(), "/templates/jasperError.ftl", null);
+            String content = pluginManager.getPluginFreeMarkerTemplate(model, getClass().getName(), "/templates/jasperError.ftl", null);
             response.setContentType("text/html");
-            response.getOutputStream().write(content.getBytes("UTF-8"));
-            return;
+            response.getOutputStream().write(content.getBytes(StandardCharsets.UTF_8));
         }
     }
 
@@ -263,7 +262,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
         UserviewMenu selectedMenu = null;
         UserviewService userviewService = (UserviewService)AppUtil.getApplicationContext().getBean("userviewService");
         UserviewDefinitionDao userviewDefinitionDao = (UserviewDefinitionDao)AppUtil.getApplicationContext().getBean("userviewDefinitionDao");
-        UserviewDefinition userviewDef = (UserviewDefinition)userviewDefinitionDao.loadById(userviewId, appDef);
+        UserviewDefinition userviewDef = userviewDefinitionDao.loadById(userviewId, appDef);
         if (userviewDef != null) {
             String json = userviewDef.getJson();
             Userview userview = userviewService.createUserview(json, menuId, false, contextPath, parameterMap, key, Boolean.valueOf(true));
@@ -297,17 +296,19 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
         }
 
         JasperReport report;
-        try(ByteArrayInputStream input = new ByteArrayInputStream(jrxml.getBytes("UTF-8"))) {
+        try(ByteArrayInputStream input = new ByteArrayInputStream(jrxml.getBytes(StandardCharsets.UTF_8))) {
             report = JasperCompileManager.compileReport(input);
         }
 
-        Map<String,Object> hm = Optional.ofNullable((Object[])menu.getProperty("parameters"))
+        Map<String,Object> hm = Optional.of("parameters")
+                .map(menu::getProperty)
+                .map(it -> (Object[])it)
                 .map(Arrays::stream)
                 .orElseGet(Stream::empty)
-                .map(o -> (Map<String, Object>)o)
-                .collect(HashMap::new, (result, rowProperty) -> result.put(rowProperty.get("name").toString(), rowProperty.get("value")), Map::putAll);
+                .map(it -> (Map<String, Object>)it)
+                .collect(Collectors.toMap(it -> String.valueOf(it.get("name")), it -> it.get("value")));
 
-        JRSwapFileVirtualizer virtualizer = null;
+        JRSwapFileVirtualizer virtualizer;
         if ("true".equals(menu.getProperty("use_virtualizer"))) {
             String path = SetupManager.getBaseDirectory() + "temp_jasper_swap";
             File filepath = new File(path);
@@ -322,11 +323,15 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
         Map<String, List<String>> filters = Optional.ofNullable((Object[])menu.getProperty("dataListFilter"))
                 .map(Arrays::stream)
                 .orElseGet(Stream::empty)
-                .map(o -> (Map<String, Object>)o)
-                .map(m -> {
+                .map(it -> (Map<String, Object>)it)
+                .map(it -> {
                     Map<String, List<String>> map = new HashMap<>();
-                    String name = String.valueOf(m.get("name"));
-                    String value = Optional.ofNullable(m.get("value")).map(String::valueOf).map(s -> AppUtil.processHashVariable(s, null, null, null)).orElse("");
+                    String name = String.valueOf(it.get("name"));
+                    String value = Optional.of("value")
+                            .map(it::get)
+                            .map(String::valueOf)
+                            .map(s -> AppUtil.processHashVariable(s, null, null, null))
+                            .orElse("");
 
                     map.put(name, Collections.singletonList(value));
                     return map;
@@ -342,7 +347,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 );
 
         JSONObject jsonResult = getDataListRow(dataListId, filters);
-        JsonDataSource ds = new JsonDataSource(new ByteArrayInputStream(jsonResult.toString().getBytes()));
+        JsonDataSource ds = new JsonDataSource(new ByteArrayInputStream(jsonResult.toString().getBytes()), "data");
         JasperPrint print = JasperFillManager.fillReport(report, hm, ds);
         return print;
     }
@@ -383,7 +388,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
 
     protected void generateReport(UserviewMenu menu, String type, HttpServletRequest request, HttpServletResponse response) throws Exception, IOException, JRException, BeansException, UnsupportedEncodingException, SQLException {
         JasperPrint print;
-        String menuId = menu.getPropertyString("fileName").isEmpty()?
+        String menuId = menu.getPropertyString("fileName").isEmpty() ?
                 menu.getPropertyString("customId") : menu.getPropertyString("fileName");
         if (menuId == null || menuId.trim().isEmpty()) {
             menuId = menu.getPropertyString("id");
@@ -595,5 +600,27 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
 
         return Optional.ofNullable(row.get(field)).map(String::valueOf).orElse("");
     }
+
+    @Nonnull
+    private String getRequiredParameter(@Nonnull HttpServletRequest request, @Nonnull String parameterName) throws ApiException {
+        return Optional.of(parameterName)
+                .map(request::getParameter)
+                .filter(not(String::isEmpty))
+                .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Missing required parameter ["+parameterName+"]"));
+    }
+
+    @Nonnull
+    private String getOptionalParameter(@Nonnull HttpServletRequest request, @Nonnull String parameterName, @Nonnull String defaultValue) {
+        return Optional.of(parameterName)
+                .map(request::getParameter)
+                .filter(not(String::isEmpty))
+                .orElse(defaultValue);
+    }
+
+
+    private <T> Predicate<T> not(Predicate<T> p) {
+        return (t) -> !p.test(t);
+    }
+
 }
 

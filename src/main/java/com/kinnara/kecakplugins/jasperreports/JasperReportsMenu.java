@@ -23,7 +23,6 @@ import org.joget.commons.util.LogUtil;
 import org.joget.commons.util.SetupManager;
 import org.joget.commons.util.StringUtil;
 import org.joget.plugin.base.PluginManager;
-import org.joget.plugin.base.PluginProperty;
 import org.joget.plugin.base.PluginWebSupport;
 import org.joget.workflow.util.WorkflowUtil;
 import org.springframework.beans.BeansException;
@@ -38,6 +37,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
 
+@Deprecated
 public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport {
     public String getName() {
         return getClass().getName();
@@ -125,7 +125,7 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
     }
 
     public String getLabel() {
-        return "JDBC Jasper";
+        return "(Deprecated) JDBC Jasper";
     }
 
     public String getClassName() {

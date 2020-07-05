@@ -7,9 +7,10 @@ import org.joget.plugin.property.model.PropertyEditable;
 
 import java.util.Map;
 
+@Deprecated
 public class JasperReportsJdbcOptions extends DefaultPlugin implements PropertyEditable {
     public String getName() {
-        return "Jasper Reports JDBC Options";
+        return getClass().getName();
     }
 
     public String getVersion() {
@@ -29,7 +30,7 @@ public class JasperReportsJdbcOptions extends DefaultPlugin implements PropertyE
     }
 
     public String getLabel() {
-        return null;
+        return "(Deprecated) Jasper Reports JDBC Options";
     }
 
     public String getClassName() {
