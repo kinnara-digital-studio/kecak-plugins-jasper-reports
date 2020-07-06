@@ -48,6 +48,68 @@
                         "label" : "@@userview.jasperReports.dataListFilter.value@@"
                     }
                 ]
+            },
+            {
+                "name": "useRestApiDriver",
+                "label": "@@userview.jasperReports.useRestApiDriver@@",
+                "value": "",
+                "type": "checkbox",
+                "options": [
+                    {
+                        "value": "true",
+                        "label": ""
+                    }
+                ]
+            },
+            {
+                "label" : "@@userview.jasperReports.restApi@@",
+                "type": "header",
+                "control_field": "useRestApiDriver",
+                "control_value": "true"
+            },
+            {
+                "name" : "url",
+                "label": "@@userview.jasperReports.url@@",
+                "type": "textfield",
+                "required": "true",
+                "control_field": "useRestApiDriver",
+                "control_value": "true"
+            },
+            {
+                "name" : "requestHeaders",
+                "label" : "@@userview.jasperReports.requestHeaders@@",
+                "type" : "grid",
+                "control_field": "useRestApiDriver",
+                "control_value": "true",
+                "columns" : [
+                    {
+                        "key" : "key",
+                        "label" : "@@userview.jasperReports.key@@",
+                        "required": "true"
+                    }, {
+                        "key" : "value",
+                        "label" : "@@userview.jasperReports.value@@",
+                        "required": "true"
+                    }
+                ]
+            },
+            {
+                "name" : "urlParameters",
+                "label" : "@@userview.jasperReports.urlParameters@@",
+                "type" : "grid",
+                "control_field": "useRestApiDriver",
+                "control_value": "true",
+                "columns" : [
+                    {
+                        "key" : "key",
+                        "label" : "@@userview.jasperReports.key@@",
+                        "required": "true"
+                    }, {
+                        "key" : "value",
+                        "label" : "@@userview.jasperReports.value@@",
+                        "required": "true"
+                    }
+                ]
             }
         ],
         "buttons": [
@@ -117,7 +179,7 @@
         "title" : "@@userview.jasperReports.reportParameters@@",
         "properties" : [
             {
-                "name" : "parameters",
+                "name" : "jasperParameters",
                 "label" : "@@userview.jasperReports.parameters@@",
                 "type" : "grid",
                 "columns" : [

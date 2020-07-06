@@ -1,7 +1,7 @@
 package com.kinnara.kecakplugins.jasperreports;
 
 import com.kinnara.kecakplugins.jasperreports.exception.ApiException;
-import com.kinnara.kecakplugins.jasperreports.exception.KecakReportException;
+import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JsonDataSource;
 import net.sf.jasperreports.engine.export.HtmlExporter;
@@ -12,6 +12,13 @@ import net.sf.jasperreports.engine.type.ImageTypeEnum;
 import net.sf.jasperreports.engine.util.JRSwapFile;
 import net.sf.jasperreports.engine.util.JRTypeSniffer;
 import net.sf.jasperreports.j2ee.servlets.BaseHttpServlet;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.ssl.SSLContextBuilder;
 import org.joget.apps.app.dao.DatalistDefinitionDao;
 import org.joget.apps.app.dao.UserviewDefinitionDao;
 import org.joget.apps.app.model.AppDefinition;
@@ -37,15 +44,20 @@ import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 
 import javax.annotation.Nonnull;
+import javax.net.ssl.SSLContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -221,7 +233,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                         .orElse(findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap));
 
                 if (selectedMenu != null) {
-                    this.generateReport(selectedMenu, type, request, response);
+                    generateReport(selectedMenu, type, request, response);
                 }
 
                 return;
@@ -289,7 +301,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
         return selectedMenu;
     }
 
-    protected JasperPrint getReport(@Nonnull UserviewMenu menu) throws JRException, UnsupportedEncodingException, KecakReportException, Exception {
+    protected JasperPrint getReport(@Nonnull UserviewMenu menu) throws JRException, UnsupportedEncodingException, KecakJasperException, Exception {
         String jrxml = menu.getPropertyString("jrxml");
         if (!JasperCompileManager.class.getClassLoader().equals(UserviewMenu.class.getClassLoader())) {
             jrxml = jrxml.replaceAll("language=\"groovy\"", "");
@@ -300,13 +312,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
             report = JasperCompileManager.compileReport(input);
         }
 
-        Map<String,Object> hm = Optional.of("parameters")
-                .map(menu::getProperty)
-                .map(it -> (Object[])it)
-                .map(Arrays::stream)
-                .orElseGet(Stream::empty)
-                .map(it -> (Map<String, Object>)it)
-                .collect(Collectors.toMap(it -> String.valueOf(it.get("name")), it -> it.get("value")));
+        Map<String,Object> jasperParameters = getPropertyJasperParameter(menu);
 
         JRSwapFileVirtualizer virtualizer;
         if ("true".equals(menu.getProperty("use_virtualizer"))) {
@@ -316,11 +322,95 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 filepath.mkdirs();
             }
             virtualizer = new JRSwapFileVirtualizer(300, new JRSwapFile(filepath.getAbsolutePath(), 4096, 100), true);
-            hm.put("REPORT_VIRTUALIZER", virtualizer);
+            jasperParameters.put("REPORT_VIRTUALIZER", virtualizer);
         }
 
         String dataListId = menu.getPropertyString("dataListId");
-        Map<String, List<String>> filters = Optional.ofNullable((Object[])menu.getProperty("dataListFilter"))
+        Map<String, List<String>> filters = getPropertyDataListFilter(menu);
+
+        JSONObject jsonResult;
+        if(getPropertyUseRestApiDriver(menu)) {
+            jsonResult = getDataFromApi(menu, dataListId);
+        } else {
+            jsonResult = getDataListRow(dataListId, filters);
+        }
+
+        try(InputStream inputStream = new ByteArrayInputStream(jsonResult.toString().getBytes())) {
+            JsonDataSource ds = new JsonDataSource(inputStream, "data");
+            JasperPrint print = JasperFillManager.fillReport(report, jasperParameters, ds);
+            return print;
+        }
+    }
+
+    /**
+     * Get property "userRestApiDriver"
+     *
+     * @param menu
+     * @return
+     */
+    private boolean getPropertyUseRestApiDriver(UserviewMenu menu) {
+        return "true".equalsIgnoreCase(menu.getPropertyString("useRestApiDriver"));
+    }
+
+    /**
+     * Get property "jasperParameter"
+     *
+     * @param menu
+     * @return
+     */
+    private Map<String, Object> getPropertyJasperParameter(UserviewMenu menu) {
+        return Optional.of("jasperParameters")
+                .map(menu::getProperty)
+                .map(it -> (Object[])it)
+                .map(Arrays::stream)
+                .orElseGet(Stream::empty)
+                .map(it -> (Map<String, Object>)it)
+                .collect(Collectors.toMap(it -> String.valueOf(it.get("name")), it -> it.get("value")));
+    }
+
+    private String processHashVariable(Object content) {
+        return AppUtil.processHashVariable(String.valueOf(content), null, null, null);
+    }
+
+    private JSONObject getDataFromApi(UserviewMenu menu, String dataListId) throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException, IOException, JSONException {
+        HttpClient client;
+        SSLContext sslContext = new SSLContextBuilder()
+                .loadTrustMaterial(null, (certificate, authType) -> true).build();
+
+        client = HttpClients.custom().setSSLContext(sslContext)
+                .setSSLHostnameVerifier(new NoopHostnameVerifier())
+                .build();
+
+        String url = getPropertyUrl(menu) + "?action=rows&dataListId=" + dataListId + "&" + getPropertyUrlParameters(menu).entrySet().stream()
+                .map(e -> e.getValue().stream()
+                        .map(it -> e.getKey() + "=" + it)
+                        .collect(Collectors.joining("&")))
+                .collect(Collectors.joining("&"));
+
+        LogUtil.info(getClassName(), "useRestApiDriver : url ["+url+"]");
+
+        final HttpRequestBase request = new HttpGet(url);
+        getPropertyRequestHeaders(menu).forEach(request::addHeader);
+
+        HttpResponse response = client.execute(request);
+
+        try(BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()))) {
+            String responseBody = bufferedReader.lines().collect(Collectors.joining());
+            LogUtil.info(getClassName(), "useRestApiDriver : responseBody ["+responseBody+"]");
+            return new JSONObject(responseBody);
+        }
+    }
+
+    /**
+     * Get property "dataListFilter"
+     *
+     * @param menu
+     * @return
+     */
+    private Map<String, List<String>> getPropertyDataListFilter(UserviewMenu menu) {
+        return Optional.of("dataListFilter")
+                .map(menu::getProperty)
+                .map(it -> (Object[]) it)
                 .map(Arrays::stream)
                 .orElseGet(Stream::empty)
                 .map(it -> (Map<String, Object>)it)
@@ -330,7 +420,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                     String value = Optional.of("value")
                             .map(it::get)
                             .map(String::valueOf)
-                            .map(s -> AppUtil.processHashVariable(s, null, null, null))
+                            .map(this::processHashVariable)
                             .orElse("");
 
                     map.put(name, Collections.singletonList(value));
@@ -345,11 +435,49 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                             return result;
                         })
                 );
+    }
 
-        JSONObject jsonResult = getDataListRow(dataListId, filters);
-        JsonDataSource ds = new JsonDataSource(new ByteArrayInputStream(jsonResult.toString().getBytes()), "data");
-        JasperPrint print = JasperFillManager.fillReport(report, hm, ds);
-        return print;
+    /**
+     * Get property "url"
+     *
+     * @return
+     */
+    private String getPropertyUrl(UserviewMenu menu) {
+        return processHashVariable(menu.getPropertyString("url"))
+                .replaceAll("\\?.+$", "");
+    }
+
+    /**
+     * Get property "requestHeaders"
+     * @return
+     */
+    @Nonnull
+    private Map<String, String> getPropertyRequestHeaders(UserviewMenu menu) {
+        return Optional.of("requestHeaders")
+                .map(menu::getProperty)
+                .map(it -> (Object[]) it)
+                .map(Arrays::stream)
+                .orElseGet(Stream::empty)
+                .map(it -> (Map<String, String>) it)
+                .collect(Collectors.toMap(it -> processHashVariable(it.get("key")), it -> processHashVariable(it.get("value"))));
+    }
+
+    /**
+     * Ger property "urlParameters"
+     *
+     * @return
+     */
+    private Map<String, List<String>> getPropertyUrlParameters(UserviewMenu menu) {
+        return Optional.of("urlParameters")
+                .map(menu::getProperty)
+                .map(it -> (Object[]) it)
+                .map(Arrays::stream)
+                .orElseGet(Stream::empty)
+                .map(it -> (Map<String, String>) it)
+                .collect(Collectors.toConcurrentMap(
+                        it -> processHashVariable(it.get("key")),
+                        it -> Arrays.asList(processHashVariable(it.get("value"))),
+                        (strings, strings2) -> Stream.concat(strings.stream(), strings2.stream()).collect(Collectors.toList())));
     }
 
     protected String generateReport() {
@@ -390,10 +518,10 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
         JasperPrint print;
         String menuId = menu.getPropertyString("fileName").isEmpty() ?
                 menu.getPropertyString("customId") : menu.getPropertyString("fileName");
-        if (menuId == null || menuId.trim().isEmpty()) {
+        if (isEmpty(menuId)) {
             menuId = menu.getPropertyString("id");
         }
-        if ((print = this.getReport(menu)) != null) {
+        if ((print = getReport(menu)) != null) {
             OutputStream output = response.getOutputStream();
             if ("pdf".equals(type)) {
                 response.setHeader("Content-Type", "application/pdf");
@@ -476,9 +604,9 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
      *
      * @param datalistId
      * @return
-     * @throws KecakReportException
+     * @throws KecakJasperException
      */
-    private DataList getDataList(String datalistId) throws KecakReportException {
+    private DataList getDataList(String datalistId) throws KecakJasperException {
         ApplicationContext appContext = AppUtil.getApplicationContext();
         AppDefinition appDef = AppUtil.getCurrentAppDefinition();
 
@@ -488,9 +616,9 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
 
         return Optional.ofNullable(datalistDefinition)
                 .map(DatalistDefinition::getJson)
-                .map(it -> AppUtil.processHashVariable(it, null, null, null))
+                .map(this::processHashVariable)
                 .map(dataListService::fromJson)
-                .orElseThrow(() -> new KecakReportException("DataList [" + datalistId + "] not found"));
+                .orElseThrow(() -> new KecakJasperException("DataList [" + datalistId + "] not found"));
     }
 
 
@@ -500,37 +628,35 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
      * @param dataListId
      * @return
      */
-    private JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters) throws KecakReportException {
 
+    @Nonnull
+    private JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters) throws KecakJasperException {
         DataList dataList = getDataList(dataListId);
         getCollectFilters(dataList, filters);
 
         DataListCollection<Map<String, Object>> rows = dataList.getRows();
         if(rows == null) {
-            throw new KecakReportException("Error retrieving row from dataList ["+dataListId+"]");
+            throw new KecakJasperException("Error retrieving row from dataList ["+dataListId+"]");
         }
 
         JSONArray jsonArrayData = rows.stream()
                 .map(m -> formatRow(dataList, m))
                 .map(JSONObject::new)
-                .collect(JSONArray::new, JSONArray::put, (arr1, arr2) -> {
-                    for(int i = 0, size = arr2.length(); i < size; i++) {
-                        arr1.put(arr2.optJSONObject(i));
-                    }
-                });
-
+                .collect(Collector.of(JSONArray::new, JSONArray::put, JSONArray::put));
 
         JSONObject jsonResult = new JSONObject();
         try {
             jsonResult.put("data", jsonArrayData);
         } catch (JSONException e) {
-            throw new KecakReportException("Error retrieving data", e);
+            throw new KecakJasperException("Error retrieving data", e);
         }
 
         return jsonResult;
     }
 
     /**
+     * Get collect filters
+     *
      * @param dataList          Input/Output parameter
      */
     private void getCollectFilters(@Nonnull final DataList dataList, @Nonnull final Map<String, List<String>> filters) {
@@ -542,7 +668,6 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 .filter(f -> Objects.nonNull(filters.get(f.getName())) && f.getType() instanceof DataListFilterTypeDefault)
                 .forEach(f -> f.getType().setProperty("defaultValue", String.join(";", filters.get(f.getName()))));
     }
-
 
     /**
      * Format Row
@@ -601,6 +726,14 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
         return Optional.ofNullable(row.get(field)).map(String::valueOf).orElse("");
     }
 
+    /**
+     * Get required parameter, if not supplied, throw {@link ApiException}
+     *
+     * @param request
+     * @param parameterName
+     * @return
+     * @throws ApiException
+     */
     @Nonnull
     private String getRequiredParameter(@Nonnull HttpServletRequest request, @Nonnull String parameterName) throws ApiException {
         return Optional.of(parameterName)
@@ -609,6 +742,14 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Missing required parameter ["+parameterName+"]"));
     }
 
+    /**
+     * Get optional parameter
+     *
+     * @param request
+     * @param parameterName
+     * @param defaultValue
+     * @return
+     */
     @Nonnull
     private String getOptionalParameter(@Nonnull HttpServletRequest request, @Nonnull String parameterName, @Nonnull String defaultValue) {
         return Optional.of(parameterName)
@@ -617,10 +758,40 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 .orElse(defaultValue);
     }
 
+    /**
+     * Is string representation of value empty
+     *
+     * @param value
+     * @return
+     */
+    private boolean isEmpty(Object value) {
+        return Optional.ofNullable(value)
+                .map(String::valueOf)
+                .map(String::trim)
+                .map(String::isEmpty)
+                .orElse(true);
+    }
 
+    /**
+     * Is string representation of value not empty
+     *
+     * @param value
+     * @return
+     */
+    private boolean isNotEmpty(Object value) {
+        return !isEmpty(value);
+    }
+
+
+    /**
+     * Predicate not
+     *
+     * @param p
+     * @param <T>
+     * @return
+     */
     private <T> Predicate<T> not(Predicate<T> p) {
         return (t) -> !p.test(t);
     }
-
 }
 
