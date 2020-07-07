@@ -236,12 +236,14 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 generateReport(selectedMenu, type, request, response);
 
                 return;
-            }
-
-            String imageName = getOptionalParameter(request, "image", "");
-            if (!imageName.trim().isEmpty()) {
-                generateImage(request, response);
-                return;
+            } else if("image".equals(action)) {
+                String imageName = getOptionalParameter(request, "image", "");
+                if (!imageName.trim().isEmpty()) {
+                    generateImage(request, response, imageName);
+                    return;
+                }
+            } else {
+                throw new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Invalid action [" + action + "]");
             }
 
             response.setStatus(HttpServletResponse.SC_NO_CONTENT);
@@ -627,7 +629,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 if (request != null) {
                     request.getSession().setAttribute("net.sf.jasperreports.j2ee.jasper_print", print);
                 }
-                String imagesUri = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?image=";
+                String imagesUri = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?action=image&image=";
                 jrHtmlExporter.setParameter(JRHtmlExporterParameter.IMAGES_URI, imagesUri);
                 jrHtmlExporter.setParameter(JRHtmlExporterParameter.OUTPUT_STREAM, output);
                 jrHtmlExporter.setParameter(JRExporterParameter.CHARACTER_ENCODING, "UTF-8");
@@ -684,8 +686,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
         }
     }
 
-    protected void generateImage(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        String imageName = request.getParameter("image");
+    protected void generateImage(HttpServletRequest request, HttpServletResponse response, String imageName) throws IOException, ServletException, ApiException {
 //        if ("px".equals(imageName)) {
 //            PluginManager pluginManager = (PluginManager)AppUtil.getApplicationContext().getBean("pluginManager");
 //
@@ -722,7 +723,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 ouputStream.close();
             }
         } catch (JRException e) {
-            e.printStackTrace();
+            throw new ApiException(HttpServletResponse.SC_BAD_REQUEST, e);
         }
     }
 
