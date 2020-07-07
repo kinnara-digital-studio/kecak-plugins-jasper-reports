@@ -237,8 +237,8 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
 
                 return;
             } else if("image".equals(action)) {
-                String imageName = getOptionalParameter(request, "image", "");
-                if (!imageName.trim().isEmpty()) {
+                String imageName = getOptionalParameter(request, "image", "").trim();
+                if ( !imageName.isEmpty( )) {
                     generateImage(request, response, imageName);
                     return;
                 }
