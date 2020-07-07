@@ -390,6 +390,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
         return Optional.of(propertyName)
                 .map(menu::getPropertyString)
                 .map(this::processHashVariable)
+                .filter(not(String::isEmpty))
                 .orElseThrow(() -> new KecakJasperException("Property [" + propertyName + "] is required"));
     }
 
