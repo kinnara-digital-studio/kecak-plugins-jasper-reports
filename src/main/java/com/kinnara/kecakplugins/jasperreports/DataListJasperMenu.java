@@ -456,7 +456,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 .map(Arrays::stream)
                 .orElseGet(Stream::empty)
                 .map(it -> (Map<String, Object>) it)
-                .collect(Collectors.toMap(it -> String.valueOf(it.get("name")), it -> it.get("value")));
+                .collect(Collectors.toMap(it -> String.valueOf(it.get("name")), it -> AppUtil.processHashVariable(String.valueOf(it.getOrDefault("value", "")), null, null, null)));
     }
 
     private String processHashVariable(Object content) {
@@ -584,15 +584,13 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 .map(JasperReport::getParameters)
                 .map(Arrays::stream)
                 .orElseGet(Stream::empty)
-                .filter(jrp -> jasperParameter.containsKey(jrp.getName()) && Optional.of(jrp)
+                .filter(jrp -> jasperParameter.containsKey(jrp.getName()))
+                .filter(jrp -> Optional.of(jrp)
                         .map(JRParameter::getPropertiesMap)
                         .map(JRPropertiesMap::getPropertyNames)
                         .map(Arrays::stream)
                         .orElseGet(Stream::empty)
                         .anyMatch("net.sf.jasperreports.http.data.url.parameter"::equals))
-                .peek(s -> {
-                    LogUtil.info(getClassName(), "getDataListRow : parameter for filter ["+s+"]");
-                })
                 .forEach(jrParameter -> {
                     String parameterName = jrParameter.getName();
                     String parameterValue = String.valueOf(jasperParameter.get(parameterName));
