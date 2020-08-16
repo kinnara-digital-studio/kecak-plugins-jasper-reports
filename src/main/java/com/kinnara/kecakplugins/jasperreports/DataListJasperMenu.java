@@ -11,6 +11,10 @@ import net.sf.jasperreports.engine.fill.JRSwapFileVirtualizer;
 import net.sf.jasperreports.engine.type.ImageTypeEnum;
 import net.sf.jasperreports.engine.util.JRSwapFile;
 import net.sf.jasperreports.engine.util.JRTypeSniffer;
+import net.sf.jasperreports.export.ExporterInput;
+import net.sf.jasperreports.export.HtmlExporterOutput;
+import net.sf.jasperreports.export.SimpleExporterInput;
+import net.sf.jasperreports.export.SimpleHtmlExporterOutput;
 import net.sf.jasperreports.j2ee.servlets.BaseHttpServlet;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -348,12 +352,12 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
             }
 
             String dataListId = getPropertyDataListId(menu);
-            Map<String, List<String>> filters = getPropertyDataListFilter(menu);
 
             JSONObject jsonResult;
             if (getPropertyUseRestApiDriver(menu)) {
                 jsonResult = getDataFromApi(menu, dataListId);
             } else {
+                Map<String, List<String>> filters = getPropertyDataListFilter(menu, report);
                 jsonResult = getDataListRow(dataListId, filters);
             }
 
@@ -544,8 +548,8 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
      * @param menu
      * @return
      */
-    private Map<String, List<String>> getPropertyDataListFilter(UserviewMenu menu) {
-        return Optional.of("dataListFilter")
+    private Map<String, List<String>> getPropertyDataListFilter(UserviewMenu menu, JasperReport jasperReport) {
+        final Map<String, List<String>> filters = Optional.of("dataListFilter")
                 .map(menu::getProperty)
                 .map(it -> (Object[]) it)
                 .map(Arrays::stream)
@@ -572,6 +576,34 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                             return result;
                         })
                 );
+
+        // add filter from jasper parameter
+        Map<String, Object> jasperParameter = getPropertyJasperParameter(menu);
+
+        Optional.of(jasperReport)
+                .map(JasperReport::getParameters)
+                .map(Arrays::stream)
+                .orElseGet(Stream::empty)
+                .filter(jrp -> jasperParameter.containsKey(jrp.getName()) && Optional.of(jrp)
+                        .map(JRParameter::getPropertiesMap)
+                        .map(JRPropertiesMap::getPropertyNames)
+                        .map(Arrays::stream)
+                        .orElseGet(Stream::empty)
+                        .anyMatch("net.sf.jasperreports.http.data.url.parameter"::equals))
+                .peek(s -> {
+                    LogUtil.info(getClassName(), "getDataListRow : parameter for filter ["+s+"]");
+                })
+                .forEach(jrParameter -> {
+                    String parameterName = jrParameter.getName();
+                    String parameterValue = String.valueOf(jasperParameter.get(parameterName));
+                    if(filters.containsKey(parameterName)) {
+                        filters.get(parameterName).add(parameterValue);
+                    } else {
+                        filters.put(parameterName, Collections.singletonList(parameterValue));
+                    }
+                });
+
+        return filters;
     }
 
     /**
@@ -622,18 +654,20 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             JasperPrint print = getReport(this);
             if (print != null) {
-                String menuId = getMenuId(this);
-                LogUtil.debug(this.getClass().getName(), ("Generating HTML report for " + menuId));
-                JRExporter jrHtmlExporter = new HtmlExporter();
-                jrHtmlExporter.setParameter(JRHtmlExporterParameter.JASPER_PRINT, print);
+                HtmlExporter jrHtmlExporter = new HtmlExporter();
+                ExporterInput exporterInput = SimpleExporterInput.getInstance(Collections.singletonList(print));
+                jrHtmlExporter.setExporterInput(exporterInput);
+
+                HtmlExporterOutput exporterOutput = new SimpleHtmlExporterOutput(output, "UTF-8");
+                jrHtmlExporter.setExporterOutput(exporterOutput);
+
+//                jrHtmlExporter.setParameter(JRHtmlExporterParameter.JASPER_PRINT, print);
                 HttpServletRequest request = WorkflowUtil.getHttpServletRequest();
                 if (request != null) {
                     request.getSession().setAttribute("net.sf.jasperreports.j2ee.jasper_print", print);
                 }
-                String imagesUri = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?action=image&image=";
-                jrHtmlExporter.setParameter(JRHtmlExporterParameter.IMAGES_URI, imagesUri);
-                jrHtmlExporter.setParameter(JRHtmlExporterParameter.OUTPUT_STREAM, output);
-                jrHtmlExporter.setParameter(JRExporterParameter.CHARACTER_ENCODING, "UTF-8");
+//                String imagesUri = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?action=image&image=";
+//                jrHtmlExporter.setParameter(JRHtmlExporterParameter.IMAGES_URI, imagesUri);
                 jrHtmlExporter.exportReport();
                 return new String(output.toByteArray(), StandardCharsets.UTF_8);
             }
@@ -771,6 +805,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
     @Nonnull
     private JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters) throws KecakJasperException {
         DataList dataList = getDataList(dataListId);
+
         getCollectFilters(dataList, filters);
 
         DataListCollection<Map<String, Object>> rows = dataList.getRows();
