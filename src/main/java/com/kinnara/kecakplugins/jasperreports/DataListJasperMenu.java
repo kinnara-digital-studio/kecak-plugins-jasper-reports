@@ -101,6 +101,9 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
 
     @Override
     public String getRenderPage() {
+        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(this.getClass().getClassLoader());
+
         try {
             AppDefinition appDef = AppUtil.getCurrentAppDefinition();
             String menuId = ifEmpty(getPropertyCustomId(this), getPropertyId(this));
@@ -142,6 +145,8 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
         } catch (Exception e) {
             LogUtil.error(getClassName(), e, e.getMessage());
             return e.getMessage();
+        } finally {
+            Thread.currentThread().setContextClassLoader(originalClassLoader);
         }
     }
 
