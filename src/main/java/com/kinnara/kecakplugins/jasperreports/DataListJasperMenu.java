@@ -4,6 +4,7 @@ import com.kinnara.kecakplugins.jasperreports.exception.ApiException;
 import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JsonDataSource;
+import net.sf.jasperreports.engine.export.FileHtmlResourceHandler;
 import net.sf.jasperreports.engine.export.HtmlExporter;
 import net.sf.jasperreports.engine.export.JRHtmlExporterParameter;
 import net.sf.jasperreports.engine.export.JRXlsExporter;
@@ -16,6 +17,7 @@ import net.sf.jasperreports.export.HtmlExporterOutput;
 import net.sf.jasperreports.export.SimpleExporterInput;
 import net.sf.jasperreports.export.SimpleHtmlExporterOutput;
 import net.sf.jasperreports.j2ee.servlets.BaseHttpServlet;
+import net.sf.jasperreports.web.util.WebHtmlResourceHandler;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
@@ -216,7 +218,10 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 response.getWriter().write(jsonResult.toString());
 
                 return;
-            } else if ("getJsonUrl".equals(action)) {
+            }
+
+            // get json url
+            else if ("getJsonUrl".equals(action)) {
                 String dataListId = getRequiredParameter(request, "dataListId");
 
                 JSONObject jsonObject = new JSONObject();
@@ -224,7 +229,10 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
 
                 response.getWriter().write(jsonObject.toString());
                 return;
-            } else if ("report".equals(action)) {
+            }
+
+            // report
+            else if ("report".equals(action)) {
                 String userviewId = getRequiredParameter(request, "userviewId");
                 String key = getRequiredParameter(request, "key");
                 String menuId = getRequiredParameter(request, "menuId");
@@ -245,13 +253,19 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 generateReport(selectedMenu, type, request, response);
 
                 return;
-            } else if("image".equals(action)) {
-                String imageName = getOptionalParameter(request, "image", "").trim();
+            }
+
+            // load image
+            else if("image".equals(action)) {
+                String imageName = getRequiredParameter(request, "image").trim();
                 if ( !imageName.isEmpty( )) {
                     generateImage(request, response, imageName);
                     return;
                 }
-            } else {
+            }
+
+            // unknown action
+            else {
                 throw new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Invalid action [" + action + "]");
             }
 
@@ -460,8 +474,8 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 .map(it -> (Object[]) it)
                 .map(Arrays::stream)
                 .orElseGet(Stream::empty)
-                .map(it -> (Map<String, Object>) it)
-                .collect(Collectors.toMap(it -> String.valueOf(it.get("name")), it -> AppUtil.processHashVariable(String.valueOf(it.getOrDefault("value", "")), null, null, null)));
+                .map(o -> (Map<String, Object>) o)
+                .collect(Collectors.toMap(map -> String.valueOf(map.get("name")), it -> AppUtil.processHashVariable(String.valueOf(it.getOrDefault("value", "")), null, null, null)));
     }
 
     private String processHashVariable(Object content) {
@@ -661,7 +675,9 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 ExporterInput exporterInput = SimpleExporterInput.getInstance(Collections.singletonList(print));
                 jrHtmlExporter.setExporterInput(exporterInput);
 
-                HtmlExporterOutput exporterOutput = new SimpleHtmlExporterOutput(output, "UTF-8");
+                SimpleHtmlExporterOutput exporterOutput = new SimpleHtmlExporterOutput(output, "UTF-8");
+                exporterOutput.setImageHandler(new WebHtmlResourceHandler(AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?action=image&image={0}"));
+
                 jrHtmlExporter.setExporterOutput(exporterOutput);
 
 //                jrHtmlExporter.setParameter(JRHtmlExporterParameter.JASPER_PRINT, print);
@@ -674,10 +690,9 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 jrHtmlExporter.exportReport();
                 return new String(output.toByteArray(), StandardCharsets.UTF_8);
             }
-
         } catch (Exception e) {
             LogUtil.error(getClassName(), e, e.getMessage());
-            HashMap<String, Exception> model = new HashMap<String, Exception>();
+            HashMap<String, Exception> model = new HashMap<>();
             model.put("exception", e);
             PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
             return pluginManager.getPluginFreeMarkerTemplate(model, this.getClass().getName(), "/templates/jasperError.ftl", null);
@@ -747,6 +762,8 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
         }
 
         JRPrintImage image = HtmlExporter.getImage(jasperPrintList, imageName);
+        net.sf.jasperreports.renderers.Renderable renderable = image.getRenderer();
+
         JRRenderable renderer = image.getRenderable();
         try {
             byte[] imageData = renderer.getImageData();
