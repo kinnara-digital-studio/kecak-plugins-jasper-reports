@@ -103,9 +103,6 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
 
     @Override
     public String getRenderPage() {
-        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-        Thread.currentThread().setContextClassLoader(this.getClass().getClassLoader());
-
         try {
             AppDefinition appDef = AppUtil.getCurrentAppDefinition();
             String menuId = ifEmpty(getPropertyCustomId(this), getPropertyId(this));
@@ -147,8 +144,6 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
         } catch (Exception e) {
             LogUtil.error(getClassName(), e, e.getMessage());
             return e.getMessage();
-        } finally {
-            Thread.currentThread().setContextClassLoader(originalClassLoader);
         }
     }
 
@@ -872,13 +867,12 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
      */
     @Nonnull
     private Map<String, Object> formatRow(DataList dataList, Map<String, Object> row) {
-        Map<String, Object> formatterRow = new HashMap<>();
-        for (DataListColumn column : dataList.getColumns()) {
-            String field = column.getName();
-            formatterRow.put(field, formatValue(dataList, row, field));
-        }
-
-        return formatterRow;
+        return Optional.of(dataList)
+                .map(DataList::getColumns)
+                .map(Arrays::stream)
+                .orElseGet(Stream::empty)
+                .filter(not(DataListColumn::isHidden))
+                .collect(Collectors.toMap(DataListColumn::getName, c -> formatValue(dataList, row, c.getName())));
     }
 
     /**
@@ -891,33 +885,26 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
      */
     @Nonnull
     private String formatValue(@Nonnull final DataList dataList, @Nonnull final Map<String, Object> row, String field) {
-        if (dataList.getColumns() == null) {
-            return Optional.ofNullable(row.get(field))
-                    .map(String::valueOf)
-                    .orElse("");
-        }
+        String value = Optional.of(field)
+                .map(row::get)
+                .map(String::valueOf)
+                .orElse("");
 
-        for (DataListColumn column : dataList.getColumns()) {
-            if (!field.equals(column.getName())) {
-                continue;
-            }
-
-            String value = Optional.ofNullable(row.get(field))
-                    .map(String::valueOf)
-                    .orElse("");
-
-            if (column.getFormats() == null) {
-                return value;
-            }
-
-            for (DataListColumnFormat format : column.getFormats()) {
-                if (format != null) {
-                    return format.format(dataList, column, row, value).replaceAll("<[^>]*>", "");
-                }
-            }
-        }
-
-        return Optional.ofNullable(row.get(field)).map(String::valueOf).orElse("");
+        return Optional.of(dataList)
+                .map(DataList::getColumns)
+                .map(Arrays::stream)
+                .orElseGet(Stream::empty)
+                .filter(c -> field.equals(c.getName()))
+                .findFirst()
+                .map(column -> Optional.of(column)
+                        .map(DataListColumn::getFormats)
+                        .map(Collection::stream)
+                        .orElseGet(Stream::empty)
+                        .findFirst()
+                        .map(f -> f.format(dataList, column, row, value))
+                        .map(s -> s.replaceAll("<[^>]*>", ""))
+                        .orElse(value))
+                .orElse(value);
     }
 
     /**
