@@ -4,7 +4,6 @@ import com.kinnara.kecakplugins.jasperreports.exception.ApiException;
 import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JsonDataSource;
-import net.sf.jasperreports.engine.export.FileHtmlResourceHandler;
 import net.sf.jasperreports.engine.export.HtmlExporter;
 import net.sf.jasperreports.engine.export.JRHtmlExporterParameter;
 import net.sf.jasperreports.engine.export.JRXlsExporter;
@@ -13,10 +12,10 @@ import net.sf.jasperreports.engine.type.ImageTypeEnum;
 import net.sf.jasperreports.engine.util.JRSwapFile;
 import net.sf.jasperreports.engine.util.JRTypeSniffer;
 import net.sf.jasperreports.export.ExporterInput;
-import net.sf.jasperreports.export.HtmlExporterOutput;
 import net.sf.jasperreports.export.SimpleExporterInput;
 import net.sf.jasperreports.export.SimpleHtmlExporterOutput;
 import net.sf.jasperreports.j2ee.servlets.BaseHttpServlet;
+import net.sf.jasperreports.renderers.SimpleDataRenderer;
 import net.sf.jasperreports.web.util.WebHtmlResourceHandler;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -31,7 +30,10 @@ import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.DatalistDefinition;
 import org.joget.apps.app.model.UserviewDefinition;
 import org.joget.apps.app.service.AppUtil;
-import org.joget.apps.datalist.model.*;
+import org.joget.apps.datalist.model.DataList;
+import org.joget.apps.datalist.model.DataListCollection;
+import org.joget.apps.datalist.model.DataListColumn;
+import org.joget.apps.datalist.model.DataListFilterTypeDefault;
 import org.joget.apps.datalist.service.DataListService;
 import org.joget.apps.userview.model.Userview;
 import org.joget.apps.userview.model.UserviewCategory;
@@ -757,11 +759,9 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
         }
 
         JRPrintImage image = HtmlExporter.getImage(jasperPrintList, imageName);
-        net.sf.jasperreports.renderers.Renderable renderable = image.getRenderer();
-
-        JRRenderable renderer = image.getRenderable();
+        SimpleDataRenderer dataRenderer = (SimpleDataRenderer) image.getRenderer();
         try {
-            byte[] imageData = renderer.getImageData();
+            byte[] imageData = dataRenderer.getData(null);
 
             if (imageData != null && imageData.length > 0) {
                 ImageTypeEnum mimeType = JRTypeSniffer.getImageTypeValue(imageData);
