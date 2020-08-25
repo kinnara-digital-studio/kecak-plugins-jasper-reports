@@ -73,6 +73,12 @@ import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * @author aristo
+ *
+ * Requires changes in core version 7635059fff56091b95948e4b314f989a06fbb51e
+ *
+ */
 public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport {
     public String getName() {
         return getClass().getName();
@@ -105,6 +111,8 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
 
     @Override
     public String getRenderPage() {
+//        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+//        Thread.currentThread().setContextClassLoader(this.getClass().getClassLoader());
         try {
             AppDefinition appDef = AppUtil.getCurrentAppDefinition();
             String menuId = ifEmpty(getPropertyCustomId(this), getPropertyId(this));
@@ -146,6 +154,8 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
         } catch (Exception e) {
             LogUtil.error(getClassName(), e, e.getMessage());
             return e.getMessage();
+        } finally {
+//            Thread.currentThread().setContextClassLoader(originalClassLoader);
         }
     }
 
