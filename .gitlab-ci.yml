@@ -8,7 +8,7 @@ build-plugin:
     - kinnara
   before_script:
     - export GET_BUILD_NUMBER=$(curl -s 'https://sandbox.kecak.org//web/json/build/info' | jq -r '.buildNumber')
-    - cd /home/gitlab-runner/kecak-workflow && git checkout $GET_BUILD_NUMBER
+    - cd /home/gitlab-runner/kecak-workflow && git fetch && git checkout $GET_BUILD_NUMBER
     - cd wflow-app && sh kecak_make.sh
     - cd "${CI_PROJECT_DIR}"
   script: 
