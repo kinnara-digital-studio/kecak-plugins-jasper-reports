@@ -181,7 +181,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
 
     @Override
     public String getClassName() {
-        return getClass().getName();
+        return getLabel() + getVersion();
     }
 
     @Override

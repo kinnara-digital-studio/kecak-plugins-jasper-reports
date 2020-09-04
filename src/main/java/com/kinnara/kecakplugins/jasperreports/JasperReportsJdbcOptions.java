@@ -34,7 +34,7 @@ public class JasperReportsJdbcOptions extends DefaultPlugin implements PropertyE
     }
 
     public String getClassName() {
-        return this.getClass().getName();
+        return getLabel() + getVersion();
     }
 
     public String getPropertyOptions() {

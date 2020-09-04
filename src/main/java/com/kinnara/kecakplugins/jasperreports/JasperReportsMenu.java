@@ -129,7 +129,7 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
     }
 
     public String getClassName() {
-        return this.getClass().getName();
+        return getLabel() + getVersion();
     }
 
     public String getPropertyOptions() {

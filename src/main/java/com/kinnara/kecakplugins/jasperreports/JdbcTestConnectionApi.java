@@ -93,7 +93,7 @@ public class JdbcTestConnectionApi extends DefaultPlugin implements PluginWebSup
 
     @Override
     public String getName() {
-        return getClass().getName();
+        return getI18nLabel() + getVersion();
     }
 
     @Override
