@@ -81,7 +81,7 @@ import java.util.stream.Stream;
  */
 public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport {
     public String getName() {
-        return getClass().getName();
+        return getLabel() + getVersion();
     }
 
     @Override
@@ -181,7 +181,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
 
     @Override
     public String getClassName() {
-        return getLabel() + getVersion();
+        return getClass().getName();
     }
 
     @Override
@@ -218,6 +218,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                         .map(Map::entrySet)
                         .map(Collection::stream)
                         .orElseGet(Stream::empty)
+                        .filter(Objects::nonNull)
                         .collect(Collectors.toMap(Map.Entry::getKey, entry -> Arrays.asList(entry.getValue())));
 
                 JSONObject jsonResult = getDataListRow(dataListId, filters);
@@ -350,6 +351,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 .map(Userview::getCategories)
                 .map(Collection::stream)
                 .orElseGet(Stream::empty)
+                .filter(Objects::nonNull)
                 .map(UserviewCategory::getMenus)
                 .filter(Objects::nonNull)
                 .flatMap(Collection::stream);
@@ -481,6 +483,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 .map(it -> (Object[]) it)
                 .map(Arrays::stream)
                 .orElseGet(Stream::empty)
+                .filter(Objects::nonNull)
                 .map(o -> (Map<String, Object>) o)
                 .collect(Collectors.toMap(map -> String.valueOf(map.get("name")), it -> AppUtil.processHashVariable(String.valueOf(it.getOrDefault("value", "")), null, null, null)));
     }
@@ -580,12 +583,13 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 .map(it -> (Object[]) it)
                 .map(Arrays::stream)
                 .orElseGet(Stream::empty)
-                .map(it -> (Map<String, Object>) it)
-                .map(it -> {
+                .filter(Objects::nonNull)
+                .map(o -> (Map<String, Object>) o)
+                .map(m -> {
                     Map<String, List<String>> map = new HashMap<>();
-                    String name = String.valueOf(it.get("name"));
+                    String name = String.valueOf(m.get("name"));
                     String value = Optional.of("value")
-                            .map(it::get)
+                            .map(m::get)
                             .map(String::valueOf)
                             .map(this::processHashVariable)
                             .orElse("");
@@ -595,6 +599,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 })
                 .map(Map::entrySet)
                 .flatMap(Set::stream)
+                .filter(Objects::nonNull)
                 .collect(
                         Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> {
                             List<String> result = new ArrayList<>(e1);
@@ -610,6 +615,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 .map(JasperReport::getParameters)
                 .map(Arrays::stream)
                 .orElseGet(Stream::empty)
+                .filter(Objects::nonNull)
                 .filter(jrp -> jasperParameter.containsKey(jrp.getName()))
                 .filter(jrp -> Optional.of(jrp)
                         .map(JRParameter::getPropertiesMap)
@@ -881,6 +887,7 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 .map(DataList::getColumns)
                 .map(Arrays::stream)
                 .orElseGet(Stream::empty)
+                .filter(Objects::nonNull)
                 .filter(not(DataListColumn::isHidden))
                 .collect(Collectors.toMap(DataListColumn::getName, c -> formatValue(dataList, row, c.getName())));
     }
@@ -904,12 +911,14 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 .map(DataList::getColumns)
                 .map(Arrays::stream)
                 .orElseGet(Stream::empty)
+                .filter(Objects::nonNull)
                 .filter(c -> field.equals(c.getName()))
                 .findFirst()
                 .map(column -> Optional.of(column)
-                        .map(DataListColumn::getFormats)
+                        .map(throwableFunction(DataListColumn::getFormats))
                         .map(Collection::stream)
                         .orElseGet(Stream::empty)
+                        .filter(Objects::nonNull)
                         .findFirst()
                         .map(f -> f.format(dataList, column, row, value))
                         .map(s -> s.replaceAll("<[^>]*>", ""))

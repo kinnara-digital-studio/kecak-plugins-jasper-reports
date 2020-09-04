@@ -40,7 +40,7 @@ import java.util.*;
 @Deprecated
 public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport {
     public String getName() {
-        return getClass().getName();
+        return getLabel() + getVersion();
     }
 
     public String getVersion() {
@@ -129,7 +129,7 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
     }
 
     public String getClassName() {
-        return getLabel() + getVersion();
+        return getClass().getName();
     }
 
     public String getPropertyOptions() {

@@ -10,7 +10,7 @@ import java.util.Map;
 @Deprecated
 public class JasperReportsJdbcOptions extends DefaultPlugin implements PropertyEditable {
     public String getName() {
-        return getClass().getName();
+        return getLabel() + getVersion();
     }
 
     public String getVersion() {
@@ -34,7 +34,7 @@ public class JasperReportsJdbcOptions extends DefaultPlugin implements PropertyE
     }
 
     public String getClassName() {
-        return getLabel() + getVersion();
+        return getClass().getName();
     }
 
     public String getPropertyOptions() {
