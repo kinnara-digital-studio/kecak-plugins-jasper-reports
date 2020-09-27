@@ -5,15 +5,12 @@ import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JsonDataSource;
 import net.sf.jasperreports.engine.export.HtmlExporter;
-import net.sf.jasperreports.engine.export.JRHtmlExporterParameter;
 import net.sf.jasperreports.engine.export.JRXlsExporter;
 import net.sf.jasperreports.engine.fill.JRSwapFileVirtualizer;
 import net.sf.jasperreports.engine.type.ImageTypeEnum;
 import net.sf.jasperreports.engine.util.JRSwapFile;
 import net.sf.jasperreports.engine.util.JRTypeSniffer;
-import net.sf.jasperreports.export.ExporterInput;
-import net.sf.jasperreports.export.SimpleExporterInput;
-import net.sf.jasperreports.export.SimpleHtmlExporterOutput;
+import net.sf.jasperreports.export.*;
 import net.sf.jasperreports.j2ee.servlets.BaseHttpServlet;
 import net.sf.jasperreports.renderers.SimpleDataRenderer;
 import net.sf.jasperreports.web.util.WebHtmlResourceHandler;
@@ -111,8 +108,6 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
 
     @Override
     public String getRenderPage() {
-//        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-//        Thread.currentThread().setContextClassLoader(this.getClass().getClassLoader());
         try {
             AppDefinition appDef = AppUtil.getCurrentAppDefinition();
             String menuId = ifEmpty(getPropertyCustomId(this), getPropertyId(this));
@@ -154,8 +149,6 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
         } catch (Exception e) {
             LogUtil.error(getClassName(), e, e.getMessage());
             return e.getMessage();
-        } finally {
-//            Thread.currentThread().setContextClassLoader(originalClassLoader);
         }
     }
 
@@ -728,24 +721,45 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 response.setHeader("Content-Type", "application/vnd.ms-excel");
                 response.setHeader("Content-Disposition", "inline; filename=" + menuId + ".xls");
                 LogUtil.debug(this.getClass().getName(), ("Generating XLS report for " + menuId));
+
                 JRXlsExporter exporter = new JRXlsExporter();
-                exporter.setParameter(JRExporterParameter.OUTPUT_STREAM, output);
-                exporter.setParameter(JRExporterParameter.JASPER_PRINT, print);
-                exporter.setParameter(JRExporterParameter.CHARACTER_ENCODING, "UTF-8");
+                exporter.setExporterInput(new SimpleExporterInput(print));
+                exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(output));
+
+                SimpleXlsReportConfiguration configuration = new SimpleXlsReportConfiguration();
+                configuration.setOnePagePerSheet(true);
+                configuration.setDetectCellType(true);
+                configuration.setCollapseRowSpan(false);
+                configuration.setWhitePageBackground(false);
+                exporter.setConfiguration(configuration);
+
+//                exporter.setParameter(JRExporterParameter.OUTPUT_STREAM, output);
+//                exporter.setParameter(JRExporterParameter.JASPER_PRINT, print);
+//                exporter.setParameter(JRExporterParameter.CHARACTER_ENCODING, "UTF-8");
                 exporter.exportReport();
             } else {
                 response.setHeader("Content-Type", "text/html; charset=UTF-8");
                 response.setHeader("Content-Disposition", "inline; filename=" + menuId + ".html");
                 LogUtil.debug(this.getClass().getName(), ("Generating HTML report for " + menuId));
-                JRExporter jrHtmlExporter = new HtmlExporter();
-                jrHtmlExporter.setParameter(JRHtmlExporterParameter.JASPER_PRINT, print);
+
+                HtmlExporter jrHtmlExporter = new HtmlExporter();
+//                JRExporter jrHtmlExporter = new HtmlExporter();
+//                jrHtmlExporter.setParameter(JRHtmlExporterParameter.JASPER_PRINT, print);
                 if (request != null) {
                     request.getSession().setAttribute("net.sf.jasperreports.j2ee.jasper_print", print);
                 }
                 String imagesUri = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?image=";
-                jrHtmlExporter.setParameter(JRHtmlExporterParameter.IMAGES_URI, imagesUri);
-                jrHtmlExporter.setParameter(JRHtmlExporterParameter.OUTPUT_STREAM, output);
-                jrHtmlExporter.setParameter(JRExporterParameter.CHARACTER_ENCODING, "UTF-8");
+                jrHtmlExporter.setExporterInput(new SimpleExporterInput(print));
+                jrHtmlExporter.setExporterOutput(new SimpleHtmlExporterOutput(output));
+
+                SimpleHtmlExporterConfiguration configuration = new SimpleHtmlExporterConfiguration();
+                configuration.setHtmlHeader(getCustomHeader(menu));
+                configuration.setHtmlFooter(getCustomFooter(menu));
+                jrHtmlExporter.setConfiguration(configuration);
+
+//                jrHtmlExporter.setParameter(JRHtmlExporterParameter.IMAGES_URI, imagesUri);
+//                jrHtmlExporter.setParameter(JRHtmlExporterParameter.OUTPUT_STREAM, output);
+//                jrHtmlExporter.setParameter(JRExporterParameter.CHARACTER_ENCODING, "UTF-8");
                 jrHtmlExporter.exportReport();
             }
             response.setStatus(HttpServletResponse.SC_OK);
@@ -825,6 +839,30 @@ public class DataListJasperMenu extends UserviewMenu implements PluginWebSupport
                 .orElseThrow(() -> new KecakJasperException("DataList [" + datalistId + "] not found"));
     }
 
+
+    /**
+     * Get custom header
+     *
+     * @param menu
+     * @return
+     */
+    private String getCustomHeader(@Nonnull UserviewMenu menu) {
+        return Optional.of("customHeader")
+                .map(menu::getPropertyString)
+                .orElse("");
+    }
+
+    /**
+     * Get custom footer
+     *
+     * @param menu
+     * @return
+     */
+    private String getCustomFooter(@Nonnull UserviewMenu menu) {
+        return Optional.of("customFooter")
+                .map(menu::getPropertyString)
+                .orElse("");
+    }
 
     /**
      * Get DataList row as JSONObject
