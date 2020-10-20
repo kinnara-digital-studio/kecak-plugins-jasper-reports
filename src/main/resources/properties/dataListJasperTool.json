@@ -1,0 +1,134 @@
+[
+    {
+        "title" : "@@userview.jasperReports.configureDataList@@",
+        "properties" : [
+            {
+                "name" : "dataListId",
+                "label": "@@userview.jasperReports.dataListId@@",
+                "type" : "selectbox",
+                "required" : "true",
+                "options_ajax" : "[CONTEXT_PATH]/web/json/console/app[APP_PATH]/datalist/options"
+            },
+            {
+                "name" : "dataListFilter",
+                "label": "@@userview.jasperReports.dataListFilter@@",
+                "type": "grid",
+                "columns" : [
+                    {
+                        "key": "name",
+                        "label" : "@@userview.jasperReports.dataListFilter.name@@",
+                        "required": "true"
+                    },
+                    {
+                        "key" : "value",
+                        "label" : "@@userview.jasperReports.dataListFilter.value@@"
+                    }
+                ]
+            },
+            {
+                "name": "useRestApiDriver",
+                "label": "@@userview.jasperReports.useRestApiDriver@@",
+                "value": "",
+                "type": "checkbox",
+                "options": [
+                    {
+                        "value": "true",
+                        "label": ""
+                    }
+                ]
+            },
+            {
+                "label" : "@@userview.jasperReports.restApi@@",
+                "type": "header",
+                "control_field": "useRestApiDriver",
+                "control_value": "true"
+            }
+        ],
+        "buttons": [
+            {
+                "name": "getJsonUrl",
+                "label": "@@userview.jasperReports.getJsonUrl@@",
+                "ajax_url": "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?action=getJsonUrl",
+                "fields": ["dataListId"]
+            }
+        ]
+    },
+    {
+        "title" : "@@userview.jasperReports.config@@",
+        "properties" : [
+            {
+                "name" : "output",
+                "label" : "@@userview.jasperReports.output@@",
+                "type" : "selectbox",
+                "value" : "html",
+                "options" : [
+                    {
+                        "value" : "html",
+                        "label" : "HTML"
+                    }
+                ]
+            },
+            {
+                "name" : "fileName",
+                "label" : "@@userview.jasperReports.fileName@@",
+                "type" : "textfield"
+            },
+            {
+                "name" : "jrxml",
+                "label" : "@@userview.jasperReports.jrxml@@",
+                "type" : "codeeditor",
+                "mode" : "xml"
+            },
+            {
+                "name" : "useVirtualizer",
+                "label" : "@@userview.jasperReports.use_virtualizer@@",
+                "type" : "checkbox",
+                "options" : [
+                    {
+                        "value" : "true",
+                        "label" : ""
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "title" : "@@userview.jasperReports.reportParameters@@",
+        "properties" : [
+            {
+                "name" : "jasperParameters",
+                "label" : "@@userview.jasperReports.parameters@@",
+                "type" : "grid",
+                "columns" : [
+                    {
+                        "key" : "name",
+                        "label" : "@@userview.jasperReports.parameter.name@@",
+                        "required" : "true"
+                    },
+                    {
+                        "key" : "value",
+                        "label" : "@@userview.jasperReports.parameter.value@@"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "title": "@@userview.jasperReports.reportParameters@@",
+        "properties": [
+            {
+                "name": "formDefId",
+                "label": "@@userview.jasperReports.formDefId@@",
+                "type": "selectbox",
+                "required": "true",
+                "options_ajax": "[CONTEXT_PATH]/web/json/console/app[APP_PATH]/forms/options"
+            },
+            {
+                "name": "field",
+                "label": "@@userview.jasperReports.field@@",
+                "type": "textfield",
+                "required": "true"
+            }
+        ]
+    }
+]
