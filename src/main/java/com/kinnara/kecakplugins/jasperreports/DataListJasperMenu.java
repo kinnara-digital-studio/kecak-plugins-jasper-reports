@@ -273,23 +273,22 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
     }
 
     protected UserviewMenu findUserviewMenuFromDef(AppDefinition appDef, String userviewId, String menuId, String key, String contextPath, Map parameterMap) throws BeansException, KecakJasperException {
-        UserviewMenu selectedMenu = null;
         UserviewService userviewService = (UserviewService) AppUtil.getApplicationContext().getBean("userviewService");
         UserviewDefinitionDao userviewDefinitionDao = (UserviewDefinitionDao) AppUtil.getApplicationContext().getBean("userviewDefinitionDao");
-        UserviewDefinition userviewDef = userviewDefinitionDao.loadById(userviewId, appDef);
-        if (userviewDef != null) {
-            String json = userviewDef.getJson();
-            Userview userview = userviewService.createUserview(json, menuId, false, contextPath, parameterMap, key, true);
-            selectedMenu = findUserviewMenuInUserview(userview, menuId);
-        }
-        return selectedMenu;
+
+        return Optional.of(userviewId)
+                .map(s -> userviewDefinitionDao.loadById(s, appDef))
+                .map(UserviewDefinition::getJson)
+                .map(json -> userviewService.createUserview(json, menuId, false, contextPath, parameterMap, key, true))
+                .map(throwableFunction(u -> findUserviewMenuInUserview(u, menuId)))
+                .orElseThrow(() -> new KecakJasperException("Error generating userview [" + userviewId + "]"));
     }
 
     protected UserviewMenu findUserviewMenuInUserview(Userview userview, String menuId) throws KecakJasperException {
         return getMenuStream(userview)
-                .filter(it -> menuId.equals(getPropertyCustomId(it)) || menuId.equals(getPropertyId(it)))
+                .filter(u -> menuId.equals(getPropertyCustomId(u)) || menuId.equals(getPropertyId(u)))
                 .findFirst()
-                .orElseThrow(() -> new KecakJasperException("No matching menu found"));
+                .orElseThrow(() -> new KecakJasperException("No matching menu [" + menuId + "] found in userview ["+userview.getPropertyString("id")+"]"));
     }
 
     /**
