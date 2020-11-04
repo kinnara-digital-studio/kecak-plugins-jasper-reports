@@ -57,18 +57,6 @@
         "title" : "@@userview.jasperReports.config@@",
         "properties" : [
             {
-                "name" : "output",
-                "label" : "@@userview.jasperReports.output@@",
-                "type" : "selectbox",
-                "value" : "html",
-                "options" : [
-                    {
-                        "value" : "html",
-                        "label" : "HTML"
-                    }
-                ]
-            },
-            {
                 "name" : "fileName",
                 "label" : "@@userview.jasperReports.fileName@@",
                 "type" : "textfield"
@@ -114,7 +102,7 @@
         ]
     },
     {
-        "title": "@@userview.jasperReports.reportParameters@@",
+        "title": "@@userview.jasperReports.storeInForm@@",
         "properties": [
             {
                 "name": "formDefId",
@@ -126,6 +114,7 @@
             {
                 "name": "field",
                 "label": "@@userview.jasperReports.field@@",
+                "description": "@@userview.jasperReports.field.desc@@",
                 "type": "textfield",
                 "required": "true"
             }
