@@ -24,24 +24,6 @@
                         "label" : "@@userview.jasperReports.dataListFilter.value@@"
                     }
                 ]
-            },
-            {
-                "name": "useRestApiDriver",
-                "label": "@@userview.jasperReports.useRestApiDriver@@",
-                "value": "",
-                "type": "checkbox",
-                "options": [
-                    {
-                        "value": "true",
-                        "label": ""
-                    }
-                ]
-            },
-            {
-                "label" : "@@userview.jasperReports.restApi@@",
-                "type": "header",
-                "control_field": "useRestApiDriver",
-                "control_value": "true"
             }
         ],
         "buttons": [
