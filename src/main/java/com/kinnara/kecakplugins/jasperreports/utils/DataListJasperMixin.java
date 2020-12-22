@@ -368,15 +368,12 @@ public interface DataListJasperMixin extends Declutter {
         getCollectFilters(dataList, filters);
 
         DataListCollection<Map<String, Object>> rows = dataList.getRows();
-        if (rows == null) {
+        if (rows == null || rows.isEmpty()) {
             throw new KecakJasperException("Error retrieving row from dataList [" + dataListId + "]");
         }
 
-        JSONArray jsonArrayData = Optional.of(dataList)
-                .map(DataList::getRows)
-                .map(r -> (DataListCollection<Map<String, Object>>)r)
-                .map(Collection::stream)
-                .orElseGet(Stream::empty)
+        JSONArray jsonArrayData = rows
+                .stream()
                 .map(m -> formatRow(dataList, m))
                 .map(JSONObject::new)
                 .collect(Collector.of(JSONArray::new, JSONArray::put, JSONArray::put));
