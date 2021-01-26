@@ -13,14 +13,16 @@ import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.DatalistDefinition;
 import org.joget.apps.app.model.FormDefinition;
 import org.joget.apps.app.service.AppUtil;
-import org.joget.apps.datalist.model.*;
+import org.joget.apps.datalist.model.DataList;
+import org.joget.apps.datalist.model.DataListCollection;
+import org.joget.apps.datalist.model.DataListColumn;
+import org.joget.apps.datalist.model.DataListFilter;
 import org.joget.apps.datalist.service.DataListService;
 import org.joget.apps.form.model.Element;
 import org.joget.apps.form.model.Form;
 import org.joget.apps.form.model.FormData;
 import org.joget.apps.form.service.FormService;
 import org.joget.apps.userview.model.UserviewMenu;
-import org.joget.commons.util.LogUtil;
 import org.joget.commons.util.SetupManager;
 import org.joget.plugin.property.model.PropertyEditable;
 import org.joget.workflow.model.WorkflowAssignment;
@@ -365,9 +367,6 @@ public interface DataListJasperMixin extends Declutter {
     @Nonnull
     default JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters) throws KecakJasperException {
         DataList dataList = getDataList(dataListId);
-
-        LogUtil.info(getClass().getName(), "getDataListRow : filters ["+filters.entrySet().stream().map(e -> e.getKey() + "->" + String.join(";", e.getValue())).collect(Collectors.joining(" || "))+"]");
-
         getCollectFilters(dataList, filters);
 
         DataListCollection<Map<String, Object>> rows = dataList.getRows();
