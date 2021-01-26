@@ -2,6 +2,7 @@ package com.kinnara.kecakplugins.jasperreports.utils;
 
 import com.kinnara.kecakplugins.jasperreports.exception.ApiException;
 import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
+import com.kinnarastudio.commons.Declutter;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JsonDataSource;
 import net.sf.jasperreports.engine.fill.JRSwapFileVirtualizer;
@@ -365,6 +366,8 @@ public interface DataListJasperMixin extends Declutter {
     default JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters) throws KecakJasperException {
         DataList dataList = getDataList(dataListId);
 
+        LogUtil.info(getClass().getName(), "getDataListRow : filters ["+filters.entrySet().stream().map(e -> e.getKey() + "->" + String.join(";", e.getValue())).collect(Collectors.joining(" || "))+"]");
+
         getCollectFilters(dataList, filters);
 
         DataListCollection<Map<String, Object>> rows = dataList.getRows();
@@ -453,7 +456,7 @@ public interface DataListJasperMixin extends Declutter {
                 .filter(c -> field.equals(c.getName()))
                 .findFirst()
                 .map(column -> Optional.of(column)
-                        .map(throwableFunction(DataListColumn::getFormats))
+                        .map(tryFunction(DataListColumn::getFormats))
                         .map(Collection::stream)
                         .orElseGet(Stream::empty)
                         .filter(Objects::nonNull)

@@ -224,7 +224,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                 UserviewMenu selectedMenu = Optional.of(json)
                         .map(String::trim)
                         .filter(not(String::isEmpty))
-                        .map(throwableFunction(s -> findUserviewMenuFromPreview(s, menuId, contextPath, parameterMap, key)))
+                        .map(tryFunction(s -> findUserviewMenuFromPreview(s, menuId, contextPath, parameterMap, key)))
                         .orElse(Optional.ofNullable(findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap))
                                 .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Menu [" + menuId + "] is not available in userview [" + userviewId + "]")));
 
@@ -280,7 +280,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                 .map(s -> userviewDefinitionDao.loadById(s, appDef))
                 .map(UserviewDefinition::getJson)
                 .map(json -> userviewService.createUserview(json, menuId, false, contextPath, parameterMap, key, true))
-                .map(throwableFunction(u -> findUserviewMenuInUserview(u, menuId)))
+                .map(tryFunction(u -> findUserviewMenuInUserview(u, menuId)))
                 .orElseThrow(() -> new KecakJasperException("Error generating userview [" + userviewId + "]"));
     }
 

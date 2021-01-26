@@ -171,6 +171,11 @@
             <artifactId>httpclient</artifactId>
             <version>4.5.6</version>
         </dependency>
+        <dependency>
+            <groupId>com.kinnarastudio</groupId>
+            <artifactId>kinnara-commons</artifactId>
+            <version>1.2.0</version>
+        </dependency>
         <!-- End change plugin specific dependencies here -->
     </dependencies>
 </project>
