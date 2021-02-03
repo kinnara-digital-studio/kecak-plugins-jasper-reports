@@ -192,7 +192,6 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                         .collect(Collectors.toMap(Map.Entry::getKey, entry -> Arrays.asList(entry.getValue())));
 
                 JSONObject jsonResult = getDataListRow(dataListId, filters);
-                LogUtil.info(getClassName(), "webService : DataList result [" + jsonResult + "]");
                 response.getWriter().write(jsonResult.toString());
 
                 return;
