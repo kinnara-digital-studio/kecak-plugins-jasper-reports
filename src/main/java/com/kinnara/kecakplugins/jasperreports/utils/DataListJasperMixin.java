@@ -3,6 +3,7 @@ package com.kinnara.kecakplugins.jasperreports.utils;
 import com.kinnara.kecakplugins.jasperreports.exception.ApiException;
 import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
 import com.kinnarastudio.commons.Declutter;
+import com.kinnarastudio.commons.jsonstream.JSONCollectors;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JsonDataSource;
 import net.sf.jasperreports.engine.fill.JRSwapFileVirtualizer;
@@ -378,7 +379,7 @@ public interface DataListJasperMixin extends Declutter {
                 .stream()
                 .map(m -> formatRow(dataList, m))
                 .map(JSONObject::new)
-                .collect(Collector.of(JSONArray::new, JSONArray::put, JSONArray::put));
+                .collect(JSONCollectors.toJSONArray());
 
         JSONObject jsonResult = new JSONObject();
         try {
