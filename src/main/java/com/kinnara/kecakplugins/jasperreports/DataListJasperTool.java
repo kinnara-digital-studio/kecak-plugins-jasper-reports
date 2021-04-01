@@ -126,7 +126,6 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
 
                 try {
                     JSONObject jsonResult = getDataListRow(dataListId, filters);
-                    LogUtil.info(getClassName(), "webService : DataList result [" + jsonResult + "]");
                     response.getWriter().write(jsonResult.toString());
                 } catch (KecakJasperException e) {
                     throw new ApiException(HttpServletResponse.SC_BAD_REQUEST, e);
@@ -190,7 +189,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
     }
 
     private String getPropertyFileName(WorkflowAssignment workflowAssignment) throws KecakJasperException {
-        return getRequiredProperty(this, "fileName", workflowAssignment);
+        return getRequiredProperty(this, "fileName", workflowAssignment).replaceAll(File.separator, "_");
     }
 
     private FormData submitForm(Map properties, File outputFile) throws KecakJasperException {
