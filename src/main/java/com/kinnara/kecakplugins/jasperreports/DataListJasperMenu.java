@@ -7,7 +7,9 @@ import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JRPrintImage;
 import net.sf.jasperreports.engine.JasperExportManager;
 import net.sf.jasperreports.engine.JasperPrint;
+import net.sf.jasperreports.engine.export.FileHtmlResourceHandler;
 import net.sf.jasperreports.engine.export.HtmlExporter;
+import net.sf.jasperreports.engine.export.HtmlResourceHandler;
 import net.sf.jasperreports.engine.export.JRXlsExporter;
 import net.sf.jasperreports.engine.type.ImageTypeEnum;
 import net.sf.jasperreports.engine.util.JRTypeSniffer;
@@ -366,19 +368,32 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".html");
             LogUtil.debug(this.getClass().getName(), ("Generating HTML report for " + fileName));
 
-            HtmlExporter jrHtmlExporter = new HtmlExporter();
             if (request != null) {
                 request.getSession().setAttribute("net.sf.jasperreports.j2ee.jasper_print", print);
             }
-            String imagesUri = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?image=";
-            jrHtmlExporter.setExporterInput(new SimpleExporterInput(print));
-            jrHtmlExporter.setExporterOutput(new SimpleHtmlExporterOutput(output));
 
-            SimpleHtmlExporterConfiguration configuration = new SimpleHtmlExporterConfiguration();
-            configuration.setHtmlHeader(getCustomHeader(menu));
-            configuration.setHtmlFooter(getCustomFooter(menu));
-            jrHtmlExporter.setConfiguration(configuration);
-            jrHtmlExporter.exportReport();
+            HtmlExporter htmlExporter = new HtmlExporter();
+            htmlExporter.setExporterInput(new SimpleExporterInput(print));
+
+            { // set exporter output
+                SimpleHtmlExporterOutput exporterOutput = new SimpleHtmlExporterOutput(output);
+                { // set image handler
+                    String imagesUriPattern = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?image={0}";
+//                    String imagesUriPattern = "{0}";
+                    WebHtmlResourceHandler resourceHandler = new WebHtmlResourceHandler(imagesUriPattern);
+                    exporterOutput.setImageHandler(resourceHandler);
+                }
+                htmlExporter.setExporterOutput(exporterOutput);
+            }
+
+            { // set configuration
+                SimpleHtmlExporterConfiguration configuration = new SimpleHtmlExporterConfiguration();
+                configuration.setHtmlHeader(getCustomHeader(menu));
+                configuration.setHtmlFooter(getCustomFooter(menu));
+                htmlExporter.setConfiguration(configuration);
+            }
+
+            htmlExporter.exportReport();
         }
         response.setStatus(HttpServletResponse.SC_OK);
     }

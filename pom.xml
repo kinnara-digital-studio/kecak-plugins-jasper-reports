@@ -105,7 +105,7 @@
 		<dependency>
 		    <groupId>net.sf.jasperreports</groupId>
 		    <artifactId>jasperreports</artifactId>
-            <version>6.13.0</version>
+            <version>6.17.0</version>
 		    <!--<exclusions>-->
 		        <!--<exclusion>-->
                     <!--<artifactId>xerces</artifactId>-->
@@ -124,27 +124,22 @@
         <dependency>
             <groupId>net.sf.jasperreports</groupId>
             <artifactId>jasperreports-functions</artifactId>
-            <version>6.13.0</version>
+            <version>6.17.0</version>
         </dependency>
         <dependency>
             <groupId>net.sf.jasperreports</groupId>
             <artifactId>jasperreports-fonts</artifactId>
-            <version>6.13.0</version>
+            <version>6.17.0</version>
         </dependency>
         <dependency>
             <groupId>net.sf.jasperreports</groupId>
             <artifactId>jasperreports-chart-customizers</artifactId>
-            <version>6.13.0</version>
+            <version>6.17.0</version>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>net.sf.jasperreports</groupId>-->
-<!--            <artifactId>jasperreports-chart-themes</artifactId>-->
-<!--            <version>6.13.0</version>-->
-<!--        </dependency>-->
         <dependency>
             <groupId>net.sf.jasperreports</groupId>
             <artifactId>jasperreports-metadata</artifactId>
-            <version>6.13.0</version>
+            <version>6.17.0</version>
         </dependency>
         <dependency>
             <groupId>commons-collections</groupId>
