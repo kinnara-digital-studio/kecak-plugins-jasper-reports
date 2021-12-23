@@ -168,7 +168,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                             .findFirst()
                             .orElseThrow(() -> new ApiException(HttpServletResponse.SC_NOT_FOUND, "Element [" +elementId + "] is not found in form [" + formDefId + "]"));
 
-                    generateReport(element, type, request, response);
+                    generateReport(element, formData, type, request, response);
                 } else {
                     throw new ApiException(HttpServletResponse.SC_NOT_FOUND, "Jasper type [" + type + "] is not supported");
                 }
@@ -199,7 +199,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
         }
     }
 
-    protected void generateReport(@Nonnull JasperViewerElement element, String type, HttpServletRequest request, HttpServletResponse response) throws JRException, BeansException, SQLException, KecakJasperException {
+    protected void generateReport(@Nonnull JasperViewerElement element, @Nonnull final FormData formData,  String type, HttpServletRequest request, HttpServletResponse response) throws JRException, BeansException, SQLException, KecakJasperException {
         LogUtil.info(getClassName(), "generateReport : type [" + type + "]");
 
         final String fileName = element.getFilename();
@@ -264,7 +264,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
     }
 
     public String getFilename() {
-        return getPropertyString("fileName");
+        return ifEmpty(getPropertyFileName(this), getPropertyId(this));
     }
 
     protected String getElementValue(FormData formData) {
