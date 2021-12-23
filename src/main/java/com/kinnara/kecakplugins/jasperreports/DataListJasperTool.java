@@ -35,6 +35,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class DataListJasperTool extends DefaultApplicationPlugin implements DataListJasperMixin, PluginWebSupport {
+    final Map<String, Form> formCache = new HashMap<>();
+
     @Override
     public String getName() {
         return getLabel() + getVersion();
@@ -158,7 +160,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
     }
 
     private Form getForm() throws KecakJasperException {
-        return generateForm(getRequiredProperty(this, "formDefId", null));
+        return generateForm(getRequiredProperty(this, "formDefId", null), formCache);
     }
 
     private Element getField(Form form, Map properties) throws KecakJasperException {

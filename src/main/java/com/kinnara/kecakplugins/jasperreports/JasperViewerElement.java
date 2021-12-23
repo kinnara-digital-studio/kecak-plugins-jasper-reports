@@ -38,6 +38,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class JasperViewerElement extends Element implements DataListJasperMixin, PluginWebSupport, FormBuilderPaletteElement {
+    final Map<String, Form> formCache = new HashMap<>();
+
     @Override
     public String renderTemplate(FormData formData, Map dataModel) {
         final String template = "JasperViewerElement.ftl";
@@ -156,7 +158,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                 final String type = getRequiredParameter(request, "_type");
 
                 if("pdf".equalsIgnoreCase(type)) {
-                    final Form form = generateForm(formDefId);
+                    final Form form = generateForm(formDefId, formCache);
 
                     final FormData formData = new FormData();
                     formData.setPrimaryKeyValue(primaryKey);
@@ -215,7 +217,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                 response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".xls");
                 LogUtil.debug(this.getClass().getName(), ("Generating XLS report for " + fileName));
 
-                JRXlsExporter exporter = new JRXlsExporter();
+                final JRXlsExporter exporter = new JRXlsExporter();
                 exporter.setExporterInput(new SimpleExporterInput(print));
                 exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(output));
 
@@ -239,18 +241,17 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                 htmlExporter.setExporterInput(new SimpleExporterInput(print));
 
                 { // set exporter output
-                    SimpleHtmlExporterOutput exporterOutput = new SimpleHtmlExporterOutput(output);
+                    final SimpleHtmlExporterOutput exporterOutput = new SimpleHtmlExporterOutput(output);
                     { // set image handler
-                        String imagesUriPattern = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?image={0}";
-//                    String imagesUriPattern = "{0}";
-                        WebHtmlResourceHandler resourceHandler = new WebHtmlResourceHandler(imagesUriPattern);
+                        final String imagesUriPattern = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?image={0}";
+                        final WebHtmlResourceHandler resourceHandler = new WebHtmlResourceHandler(imagesUriPattern);
                         exporterOutput.setImageHandler(resourceHandler);
                     }
                     htmlExporter.setExporterOutput(exporterOutput);
                 }
 
                 { // set configuration
-                    SimpleHtmlExporterConfiguration configuration = new SimpleHtmlExporterConfiguration();
+                    final SimpleHtmlExporterConfiguration configuration = new SimpleHtmlExporterConfiguration();
                     htmlExporter.setConfiguration(configuration);
                 }
 

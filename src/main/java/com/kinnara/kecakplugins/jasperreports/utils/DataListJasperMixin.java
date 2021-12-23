@@ -53,8 +53,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public interface DataListJasperMixin extends Declutter {
-    Map<String, Form> formCache = new HashMap<>();
-
     /**
      * Stream element children
      *
@@ -143,23 +141,21 @@ public interface DataListJasperMixin extends Declutter {
         return getOptionalProperty(propertyEditable, "customId");
     }
 
-    default Form generateForm(String formDefId) throws KecakJasperException {
+    default Form generateForm(String formDefId, final Map<String, Form> formCache) throws KecakJasperException {
         if(formCache.containsKey(formDefId)) {
             return formCache.get(formDefId);
         }
 
-
-        AppDefinition appDefinition = AppUtil.getCurrentAppDefinition();
-        ApplicationContext appContext = AppUtil.getApplicationContext();
-        FormService formService = (FormService) appContext.getBean("formService");
-        FormDefinitionDao formDefinitionDao = (FormDefinitionDao)appContext.getBean("formDefinitionDao");
+        final AppDefinition appDefinition = AppUtil.getCurrentAppDefinition();
+        final ApplicationContext appContext = AppUtil.getApplicationContext();
+        final FormService formService = (FormService) appContext.getBean("formService");
+        final FormDefinitionDao formDefinitionDao = (FormDefinitionDao)appContext.getBean("formDefinitionDao");
 
         if(appDefinition == null) {
             throw new KecakJasperException("Application definition is not available");
         }
 
-
-        Form form = Optional.ofNullable(formDefId)
+        final Form form = Optional.ofNullable(formDefId)
                 .map(s -> formDefinitionDao.loadById(s, appDefinition))
                 .map(FormDefinition::getJson)
                 .map(formService::createElementFromJson)
@@ -233,7 +229,7 @@ public interface DataListJasperMixin extends Declutter {
                 );
 
         // add filter from jasper parameter
-        Map<String, Object> jasperParameter = getPropertyJasperParameter(obj, workflowAssignment);
+        final Map<String, Object> jasperParameter = getPropertyJasperParameter(obj, workflowAssignment);
 
         Optional.of(jasperReport)
                 .map(JasperReport::getParameters)
