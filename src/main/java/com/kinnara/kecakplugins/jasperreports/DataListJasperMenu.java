@@ -3,13 +3,12 @@ package com.kinnara.kecakplugins.jasperreports;
 import com.kinnara.kecakplugins.jasperreports.exception.ApiException;
 import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
 import com.kinnara.kecakplugins.jasperreports.utils.DataListJasperMixin;
+import com.kinnarastudio.commons.Try;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JRPrintImage;
 import net.sf.jasperreports.engine.JasperExportManager;
 import net.sf.jasperreports.engine.JasperPrint;
-import net.sf.jasperreports.engine.export.FileHtmlResourceHandler;
 import net.sf.jasperreports.engine.export.HtmlExporter;
-import net.sf.jasperreports.engine.export.HtmlResourceHandler;
 import net.sf.jasperreports.engine.export.JRXlsExporter;
 import net.sf.jasperreports.engine.type.ImageTypeEnum;
 import net.sf.jasperreports.engine.util.JRTypeSniffer;
@@ -225,7 +224,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                 UserviewMenu selectedMenu = Optional.of(json)
                         .map(String::trim)
                         .filter(not(String::isEmpty))
-                        .map(tryFunction(s -> findUserviewMenuFromPreview(s, menuId, contextPath, parameterMap, key)))
+                        .map(Try.onFunction(s -> findUserviewMenuFromPreview(s, menuId, contextPath, parameterMap, key)))
                         .orElse(Optional.ofNullable(findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap))
                                 .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Menu [" + menuId + "] is not available in userview [" + userviewId + "]")));
 
@@ -396,31 +395,6 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             htmlExporter.exportReport();
         }
         response.setStatus(HttpServletResponse.SC_OK);
-    }
-
-    protected void generateImage(HttpServletRequest request, HttpServletResponse response, String imageName) throws IOException, ServletException, ApiException {
-        List<JasperPrint> jasperPrintList = BaseHttpServlet.getJasperPrintList(request);
-        if (jasperPrintList == null) {
-            throw new ServletException("No JasperPrint documents found on the HTTP session.");
-        }
-
-        JRPrintImage image = HtmlExporter.getImage(jasperPrintList, imageName);
-        SimpleDataRenderer dataRenderer = (SimpleDataRenderer) image.getRenderer();
-        try {
-            byte[] imageData = dataRenderer.getData(null);
-
-            if (imageData != null && imageData.length > 0) {
-                ImageTypeEnum mimeType = JRTypeSniffer.getImageTypeValue(imageData);
-                response.setHeader("Content-Type", mimeType.getMimeType());
-                response.setContentLength(imageData.length);
-                ServletOutputStream ouputStream = response.getOutputStream();
-                ouputStream.write(imageData, 0, imageData.length);
-                ouputStream.flush();
-                ouputStream.close();
-            }
-        } catch (JRException e) {
-            throw new ApiException(HttpServletResponse.SC_BAD_REQUEST, e);
-        }
     }
 
     /**

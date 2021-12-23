@@ -19,6 +19,7 @@ public class Activator implements BundleActivator {
         registrationList.add(context.registerService(JdbcTestConnectionApi.class.getName(), new JdbcTestConnectionApi(), null));
         registrationList.add(context.registerService(DataListJasperMenu.class.getName(), new DataListJasperMenu(), null));
         registrationList.add(context.registerService(DataListJasperTool.class.getName(), new DataListJasperTool(), null));
+        registrationList.add(context.registerService(JasperViewerElement.class.getName(), new JasperViewerElement(), null));
     }
 
     public void stop(BundleContext context) {

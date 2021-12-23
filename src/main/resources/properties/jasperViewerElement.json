@@ -1,0 +1,227 @@
+[
+  {
+    "title" : "@@userview.jasperReports.configureMenu@@",
+    "properties": [
+      {
+        "name": "id",
+        "label": "ID",
+        "type": "textfield",
+        "required": "true"
+      },
+      {
+        "name": "label",
+        "label": "@@userview.jasperReports.label@@",
+        "type": "textfield",
+        "value": "@@userview.jasperReports.jasperReport@@",
+        "required": "True"
+      }
+    ]
+  },
+  {
+    "title" : "@@userview.jasperReports.configureDataList@@",
+    "properties" : [
+      {
+        "name" : "dataListId",
+        "label": "@@userview.jasperReports.dataListId@@",
+        "type" : "selectbox",
+        "required" : "true",
+        "options_ajax" : "[CONTEXT_PATH]/web/json/console/app[APP_PATH]/datalist/options"
+      },
+      {
+        "name" : "dataListFilter",
+        "label": "@@userview.jasperReports.dataListFilter@@",
+        "type": "grid",
+        "columns" : [
+          {
+            "key": "name",
+            "label" : "@@userview.jasperReports.dataListFilter.name@@",
+            "required": "true"
+          },
+          {
+            "key" : "value",
+            "label" : "@@userview.jasperReports.dataListFilter.value@@"
+          }
+        ]
+      },
+      {
+        "name": "useRestApiDriver",
+        "label": "@@userview.jasperReports.useRestApiDriver@@",
+        "value": "",
+        "type": "checkbox",
+        "options": [
+          {
+            "value": "true",
+            "label": ""
+          }
+        ]
+      },
+      {
+        "label" : "@@userview.jasperReports.restApi@@",
+        "type": "header",
+        "control_field": "useRestApiDriver",
+        "control_value": "true"
+      },
+      {
+        "name" : "url",
+        "label": "@@userview.jasperReports.url@@",
+        "type": "textfield",
+        "required": "true",
+        "control_field": "useRestApiDriver",
+        "control_value": "true"
+      },
+      {
+        "name" : "requestHeaders",
+        "label" : "@@userview.jasperReports.requestHeaders@@",
+        "type" : "grid",
+        "control_field": "useRestApiDriver",
+        "control_value": "true",
+        "columns" : [
+          {
+            "key" : "key",
+            "label" : "@@userview.jasperReports.key@@",
+            "required": "true"
+          }, {
+            "key" : "value",
+            "label" : "@@userview.jasperReports.value@@",
+            "required": "true"
+          }
+        ]
+      },
+      {
+        "name" : "urlParameters",
+        "label" : "@@userview.jasperReports.urlParameters@@",
+        "type" : "grid",
+        "control_field": "useRestApiDriver",
+        "control_value": "true",
+        "columns" : [
+          {
+            "key" : "key",
+            "label" : "@@userview.jasperReports.key@@",
+            "required": "true"
+          }, {
+            "key" : "value",
+            "label" : "@@userview.jasperReports.value@@",
+            "required": "true"
+          }
+        ]
+      }
+    ],
+    "buttons": [
+      {
+        "name": "getJsonUrl",
+        "label": "@@userview.jasperReports.getJsonUrl@@",
+        "ajax_url": "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?_action=getJsonUrl",
+        "fields": ["dataListId"]
+      }
+    ]
+  },
+  {
+    "title" : "@@userview.jasperReports.config@@",
+    "properties" : [
+      {
+        "name" : "output",
+        "label" : "@@userview.jasperReports.output@@",
+        "type" : "selectbox",
+        "value" : "html",
+        "options" : [
+          {
+            "value" : "html",
+            "label" : "HTML"
+          }
+        ]
+      },
+      {
+        "name" : "export",
+        "label" : "@@userview.jasperReports.export@@",
+        "type" : "checkbox",
+        "options" : [
+          {
+            "value" : "pdf",
+            "label" : "PDF"
+          },
+          {
+            "value" : "xls",
+            "label" : "Excel"
+          }
+        ]
+      },
+      {
+        "name" : "fileName",
+        "label" : "@@userview.jasperReports.fileName@@",
+        "type" : "textfield"
+      },
+      {
+        "name" : "jrxml",
+        "label" : "@@userview.jasperReports.jrxml@@",
+        "type" : "codeeditor",
+        "mode" : "xml"
+      },
+      {
+        "name" : "use_virtualizer",
+        "label" : "@@userview.jasperReports.use_virtualizer@@",
+        "type" : "checkbox",
+        "options" : [
+          {
+            "value" : "true",
+            "label" : ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "title" : "@@userview.jasperReports.reportParameters@@",
+    "properties" : [
+      {
+        "name" : "jasperParameters",
+        "label" : "@@userview.jasperReports.parameters@@",
+        "type" : "grid",
+        "columns" : [
+          {
+            "key" : "name",
+            "label" : "@@userview.jasperReports.parameter.name@@",
+            "required" : "true"
+          },
+          {
+            "key" : "value",
+            "label" : "@@userview.jasperReports.parameter.value@@"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "title" : "@@userview.jasperReports.ui@@",
+    "properties" : [
+      {
+        "name": "width",
+        "label": "Width",
+        "type": "textfield",
+        "value": "320"
+      },
+      {
+        "name": "height",
+        "label": "Height",
+        "type": "textfield",
+        "value": "320"
+      },
+      {
+        "name": "ratio",
+        "label": "Ratio",
+        "type": "radio",
+        "value": "4by3",
+        "required": "true",
+        "options": [
+          {
+            "value": "16by9",
+            "label": "16:9"
+          },
+          {
+            "value": "4by3",
+            "label": "4:3"
+          }
+        ]
+      }
+    ]
+  }
+]

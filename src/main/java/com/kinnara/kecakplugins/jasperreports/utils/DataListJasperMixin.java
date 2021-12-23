@@ -6,8 +6,13 @@ import com.kinnarastudio.commons.Declutter;
 import com.kinnarastudio.commons.jsonstream.JSONCollectors;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JsonDataSource;
+import net.sf.jasperreports.engine.export.HtmlExporter;
 import net.sf.jasperreports.engine.fill.JRSwapFileVirtualizer;
+import net.sf.jasperreports.engine.type.ImageTypeEnum;
 import net.sf.jasperreports.engine.util.JRSwapFile;
+import net.sf.jasperreports.engine.util.JRTypeSniffer;
+import net.sf.jasperreports.j2ee.servlets.BaseHttpServlet;
+import net.sf.jasperreports.renderers.SimpleDataRenderer;
 import org.joget.apps.app.dao.DatalistDefinitionDao;
 import org.joget.apps.app.dao.FormDefinitionDao;
 import org.joget.apps.app.model.AppDefinition;
@@ -33,6 +38,8 @@ import org.json.JSONObject;
 import org.springframework.context.ApplicationContext;
 
 import javax.annotation.Nonnull;
+import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayInputStream;
@@ -42,7 +49,6 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Predicate;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -398,6 +404,31 @@ public interface DataListJasperMixin extends Declutter {
      */
     default String processHashVariable(String content) {
         return processHashVariable(content, null);
+    }
+
+    default void generateImage(HttpServletRequest request, HttpServletResponse response, String imageName) throws IOException, ServletException, ApiException {
+        final List<JasperPrint> jasperPrintList = BaseHttpServlet.getJasperPrintList(request);
+        if (jasperPrintList == null) {
+            throw new ServletException("No JasperPrint documents found on the HTTP session.");
+        }
+
+        JRPrintImage image = HtmlExporter.getImage(jasperPrintList, imageName);
+        SimpleDataRenderer dataRenderer = (SimpleDataRenderer) image.getRenderer();
+        try {
+            byte[] imageData = dataRenderer.getData(null);
+
+            if (imageData != null && imageData.length > 0) {
+                ImageTypeEnum mimeType = JRTypeSniffer.getImageTypeValue(imageData);
+                response.setHeader("Content-Type", mimeType.getMimeType());
+                response.setContentLength(imageData.length);
+                ServletOutputStream ouputStream = response.getOutputStream();
+                ouputStream.write(imageData, 0, imageData.length);
+                ouputStream.flush();
+                ouputStream.close();
+            }
+        } catch (JRException e) {
+            throw new ApiException(HttpServletResponse.SC_BAD_REQUEST, e);
+        }
     }
 
     /**
