@@ -200,9 +200,9 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
             // get json url
             else if ("getJsonUrl".equals(action)) {
-                String dataListId = getRequiredParameter(request, "dataListId");
+                final String dataListId = getRequiredParameter(request, "dataListId");
 
-                JSONObject jsonObject = new JSONObject();
+                final JSONObject jsonObject = new JSONObject();
                 jsonObject.put("message", request.getRequestURL() + "?action=rows&dataListId=" + dataListId);
 
                 response.getWriter().write(jsonObject.toString());
@@ -211,17 +211,17 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
             // report
             else if ("report".equals(action)) {
-                String userviewId = getRequiredParameter(request, "userviewId");
-                String key = getRequiredParameter(request, "key");
-                String menuId = getRequiredParameter(request, "menuId");
-                String type = getRequiredParameter(request, "type");
-                String json = getOptionalParameter(request, "json", "");
-                String contextPath = request.getContextPath();
-                Map parameterMap = request.getParameterMap();
+                final String userviewId = getRequiredParameter(request, "userviewId");
+                final String key = getRequiredParameter(request, "key");
+                final String menuId = getRequiredParameter(request, "menuId");
+                final String type = getRequiredParameter(request, "type");
+                final String json = getOptionalParameter(request, "json", "");
+                final String contextPath = request.getContextPath();
+                final Map parameterMap = request.getParameterMap();
 
-                AppDefinition appDef = AppUtil.getCurrentAppDefinition();
+                final AppDefinition appDef = AppUtil.getCurrentAppDefinition();
 
-                UserviewMenu selectedMenu = Optional.of(json)
+                final UserviewMenu selectedMenu = Optional.of(json)
                         .map(String::trim)
                         .filter(not(String::isEmpty))
                         .map(Try.onFunction(s -> findUserviewMenuFromPreview(s, menuId, contextPath, parameterMap, key)))
@@ -235,7 +235,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
             // load image
             else if("image".equals(action)) {
-                String imageName = getRequiredParameter(request, "image").trim();
+                final String imageName = getRequiredParameter(request, "image").trim();
                 if ( !imageName.isEmpty( )) {
                     generateImage(request, response, imageName);
                     return;
