@@ -48,6 +48,8 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
         dataModel.put("src", getElementValue(formData));
         dataModel.put("ratio",this.getPropertyString("ratio"));
 
+        FormUtil.setReadOnlyProperty(this);
+
         String html = FormUtil.generateElementHtml(this, formData, template, dataModel);
         return html;
     }
