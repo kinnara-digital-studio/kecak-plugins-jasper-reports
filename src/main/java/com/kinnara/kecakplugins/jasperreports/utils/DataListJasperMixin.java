@@ -80,28 +80,27 @@ public interface DataListJasperMixin extends Declutter {
             jrxml = jrxml.replaceAll("language=\"groovy\"", "");
         }
 
-        try (ByteArrayInputStream input = new ByteArrayInputStream(jrxml.getBytes(StandardCharsets.UTF_8))) {
-            JasperReport report = JasperCompileManager.compileReport(input);
-            Map<String, Object> jasperParameters = getPropertyJasperParameter(prop, workflowAssignment);
+        try (final ByteArrayInputStream input = new ByteArrayInputStream(jrxml.getBytes(StandardCharsets.UTF_8))) {
+            final JasperReport report = JasperCompileManager.compileReport(input);
+            final Map<String, Object> jasperParameters = getPropertyJasperParameter(prop, workflowAssignment);
 
             if (getPropertyUseVirtualizer(prop)) {
-                String path = SetupManager.getBaseDirectory() + "temp_jasper_swap";
-                File filepath = new File(path);
+                final String path = SetupManager.getBaseDirectory() + "temp_jasper_swap";
+                final File filepath = new File(path);
                 if (!filepath.exists()) {
                     filepath.mkdirs();
                 }
-                JRSwapFileVirtualizer virtualizer = new JRSwapFileVirtualizer(300, new JRSwapFile(filepath.getAbsolutePath(), 4096, 100), true);
+                final JRSwapFileVirtualizer virtualizer = new JRSwapFileVirtualizer(300, new JRSwapFile(filepath.getAbsolutePath(), 4096, 100), true);
                 jasperParameters.put("REPORT_VIRTUALIZER", virtualizer);
             }
 
-            String dataListId = getPropertyDataListId(prop, workflowAssignment);
+            final String dataListId = getPropertyDataListId(prop, workflowAssignment);
+            final Map<String, List<String>> filters = getPropertyDataListFilter(prop, report, workflowAssignment);
+            final JSONObject jsonResult = getDataListRow(dataListId, filters);
 
-            Map<String, List<String>> filters = getPropertyDataListFilter(prop, report, workflowAssignment);
-            JSONObject jsonResult = getDataListRow(dataListId, filters);
-
-            try (InputStream inputStream = new ByteArrayInputStream(jsonResult.toString().getBytes())) {
-                JRDataSource ds = new JsonDataSource(inputStream, "data");
-                JasperPrint print = JasperFillManager.fillReport(report, jasperParameters, ds);
+            try (final InputStream inputStream = new ByteArrayInputStream(jsonResult.toString().getBytes())) {
+                final JRDataSource ds = new JsonDataSource(inputStream, "data");
+                final JasperPrint print = JasperFillManager.fillReport(report, jasperParameters, ds);
                 return print;
             }
         } catch (IOException | JRException e) {
