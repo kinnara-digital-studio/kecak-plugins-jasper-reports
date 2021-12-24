@@ -158,12 +158,22 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                 final String elementId = getRequiredParameter(request, "_elementId");
                 final String primaryKey = getRequiredParameter(request, "id");
                 final String type = getRequiredParameter(request, "_type");
+                final String assignmentId = getOptionalParameter(request, "_assignmentId", "");
+                final String processId = getOptionalParameter(request, "_processId", "");
 
                 if("pdf".equalsIgnoreCase(type)) {
                     final Form form = generateForm(formDefId, formCache);
 
                     final FormData formData = new FormData();
                     formData.setPrimaryKeyValue(primaryKey);
+
+                    if(!assignmentId.isEmpty()) {
+                        formData.setActivityId(assignmentId);
+                    }
+
+                    if(!processId.isEmpty()) {
+                        formData.setProcessId(processId);
+                    }
 
                     final JasperViewerElement element = (JasperViewerElement) elementStream(form, formData)
                             .filter(e -> elementId.equals(e.getPropertyString("id")) && e instanceof JasperViewerElement)
@@ -202,10 +212,10 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
     }
 
     protected void generateReport(@Nonnull JasperViewerElement element, @Nonnull final FormData formData,  String type, HttpServletRequest request, HttpServletResponse response) throws JRException, BeansException, SQLException, KecakJasperException {
-        LogUtil.info(getClassName(), "generateReport : type [" + type + "]");
-
+        final WorkflowManager workflowManager = (WorkflowManager) AppUtil.getApplicationContext().getBean("workflowManager");
         final String fileName = element.getFilename();
-        final JasperPrint print = getJasperPrint(element, null);
+        final WorkflowAssignment workflowAssignment = workflowManager.getAssignment(formData.getActivityId());
+        final JasperPrint print = getJasperPrint(element, workflowAssignment);
 
         try(final OutputStream output = response.getOutputStream()) {
             if ("pdf".equals(type)) {
@@ -239,7 +249,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                     request.getSession().setAttribute("net.sf.jasperreports.j2ee.jasper_print", print);
                 }
 
-                HtmlExporter htmlExporter = new HtmlExporter();
+                final HtmlExporter htmlExporter = new HtmlExporter();
                 htmlExporter.setExporterInput(new SimpleExporterInput(print));
 
                 { // set exporter output
@@ -270,13 +280,12 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
     }
 
     protected String getElementValue(FormData formData) {
+        final AppDefinition appDefinition = AppUtil.getCurrentAppDefinition();
         final WorkflowManager workflowManager = (WorkflowManager) AppUtil.getApplicationContext().getBean("workflowManager");
         final WorkflowAssignment workflowAssignment = Optional.of(formData)
                 .map(FormData::getActivityId)
                 .map(workflowManager::getAssignment)
                 .orElse(null);
-
-        final AppDefinition appDefinition = AppUtil.getCurrentAppDefinition();
 
         final Form form = FormUtil.findRootForm(this);
         if(form == null) {
@@ -285,13 +294,21 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
 
         final String formDefId = form.getPropertyString(FormUtil.PROPERTY_ID);
 
-        return "/web/json/app/"
+        final String assignmentParameter = workflowAssignment == null ? "" : ("&_assignmentId="
+                + workflowAssignment.getActivityId()
+                + "&_processId="
+                + workflowAssignment.getProcessId());
+
+        final String url = "/web/json/app/"
                 + appDefinition.getAppId()+ "/"
                 + appDefinition.getVersion() + "/plugin/"
                 + getClassName() + "/service?_action=report&id="
                 + formData.getPrimaryKeyValue() + "&_formId="
                 + formDefId + "&_elementId="
-                + getPropertyString("id") + "&_type=pdf";
+                + getPropertyString("id") + "&_type=pdf"
+                + assignmentParameter;
+
+        return AppUtil.processHashVariable(url, workflowAssignment, null, null);
     }
 
 }

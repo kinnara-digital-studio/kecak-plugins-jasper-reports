@@ -336,65 +336,68 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
         }
     }
 
-    protected void generateReport(@Nonnull UserviewMenu menu, String type, HttpServletRequest request, HttpServletResponse response) throws Exception, IOException, JRException, BeansException, UnsupportedEncodingException, SQLException {
-        String fileName = getFileName(menu);
-        JasperPrint print = getJasperPrint(menu, null);
-        OutputStream output = response.getOutputStream();
-        if ("pdf".equals(type)) {
-            response.setHeader("Content-Type", "application/pdf");
-            response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".pdf");
-            LogUtil.info(this.getClassName(), ("Generating PDF report for " + fileName));
-            LogUtil.debug(this.getClassName(), ("Generating PDF report for " + fileName));
-            JasperExportManager.exportReportToPdfStream(print, output);
-        } else if ("xls".equals(type)) {
-            response.setHeader("Content-Type", "application/vnd.ms-excel");
-            response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".xls");
-            LogUtil.debug(this.getClass().getName(), ("Generating XLS report for " + fileName));
+    protected void generateReport(@Nonnull UserviewMenu menu, String type, HttpServletRequest request, HttpServletResponse response) throws JRException, BeansException, KecakJasperException {
+        final String fileName = getFileName(menu);
+        final JasperPrint print = getJasperPrint(menu, null);
 
-            JRXlsExporter exporter = new JRXlsExporter();
-            exporter.setExporterInput(new SimpleExporterInput(print));
-            exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(output));
+        try(final OutputStream output = response.getOutputStream()) {
+            if ("pdf".equals(type)) {
+                response.setHeader("Content-Type", "application/pdf");
+                response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".pdf");
+                LogUtil.info(this.getClassName(), ("Generating PDF report for " + fileName));
+                LogUtil.debug(this.getClassName(), ("Generating PDF report for " + fileName));
+                JasperExportManager.exportReportToPdfStream(print, output);
+            } else if ("xls".equals(type)) {
+                response.setHeader("Content-Type", "application/vnd.ms-excel");
+                response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".xls");
+                LogUtil.debug(this.getClass().getName(), ("Generating XLS report for " + fileName));
 
-            SimpleXlsReportConfiguration configuration = new SimpleXlsReportConfiguration();
-            configuration.setOnePagePerSheet(true);
-            configuration.setDetectCellType(true);
-            configuration.setCollapseRowSpan(false);
-            configuration.setWhitePageBackground(false);
-            exporter.setConfiguration(configuration);
-            exporter.exportReport();
-        } else {
-            response.setHeader("Content-Type", "text/html; charset=UTF-8");
-            response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".html");
-            LogUtil.debug(this.getClass().getName(), ("Generating HTML report for " + fileName));
+                final JRXlsExporter exporter = new JRXlsExporter();
+                exporter.setExporterInput(new SimpleExporterInput(print));
+                exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(output));
 
-            if (request != null) {
-                request.getSession().setAttribute("net.sf.jasperreports.j2ee.jasper_print", print);
-            }
+                final SimpleXlsReportConfiguration configuration = new SimpleXlsReportConfiguration();
+                configuration.setOnePagePerSheet(true);
+                configuration.setDetectCellType(true);
+                configuration.setCollapseRowSpan(false);
+                configuration.setWhitePageBackground(false);
+                exporter.setConfiguration(configuration);
+                exporter.exportReport();
+            } else {
+                response.setHeader("Content-Type", "text/html; charset=UTF-8");
+                response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".html");
+                LogUtil.debug(this.getClass().getName(), ("Generating HTML report for " + fileName));
 
-            HtmlExporter htmlExporter = new HtmlExporter();
-            htmlExporter.setExporterInput(new SimpleExporterInput(print));
-
-            { // set exporter output
-                SimpleHtmlExporterOutput exporterOutput = new SimpleHtmlExporterOutput(output);
-                { // set image handler
-                    String imagesUriPattern = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?image={0}";
-//                    String imagesUriPattern = "{0}";
-                    WebHtmlResourceHandler resourceHandler = new WebHtmlResourceHandler(imagesUriPattern);
-                    exporterOutput.setImageHandler(resourceHandler);
+                if (request != null) {
+                    request.getSession().setAttribute("net.sf.jasperreports.j2ee.jasper_print", print);
                 }
-                htmlExporter.setExporterOutput(exporterOutput);
-            }
 
-            { // set configuration
-                SimpleHtmlExporterConfiguration configuration = new SimpleHtmlExporterConfiguration();
-                configuration.setHtmlHeader(getCustomHeader(menu));
-                configuration.setHtmlFooter(getCustomFooter(menu));
-                htmlExporter.setConfiguration(configuration);
-            }
+                final HtmlExporter htmlExporter = new HtmlExporter();
+                htmlExporter.setExporterInput(new SimpleExporterInput(print));
 
-            htmlExporter.exportReport();
+                { // set exporter output
+                    final SimpleHtmlExporterOutput exporterOutput = new SimpleHtmlExporterOutput(output);
+                    { // set image handler
+                        final String imagesUriPattern = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?image={0}";
+                        final WebHtmlResourceHandler resourceHandler = new WebHtmlResourceHandler(imagesUriPattern);
+                        exporterOutput.setImageHandler(resourceHandler);
+                    }
+                    htmlExporter.setExporterOutput(exporterOutput);
+                }
+
+                { // set configuration
+                    final SimpleHtmlExporterConfiguration configuration = new SimpleHtmlExporterConfiguration();
+                    configuration.setHtmlHeader(getCustomHeader(menu));
+                    configuration.setHtmlFooter(getCustomFooter(menu));
+                    htmlExporter.setConfiguration(configuration);
+                }
+
+                htmlExporter.exportReport();
+            }
+            response.setStatus(HttpServletResponse.SC_OK);
+        } catch (IOException e) {
+            throw new KecakJasperException(e);
         }
-        response.setStatus(HttpServletResponse.SC_OK);
     }
 
     /**
