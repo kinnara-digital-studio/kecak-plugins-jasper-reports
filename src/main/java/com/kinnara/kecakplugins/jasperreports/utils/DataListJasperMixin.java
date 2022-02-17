@@ -53,6 +53,19 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public interface DataListJasperMixin extends Declutter {
+    String PARAM_ACTION = "_action";
+    String PARAM_DATALIST_ID = "_dataListId";
+    String PARAM_USERVIEW_ID = "_userviewId";
+    String PARAM_MENU_ID = "_menuId";
+    String PARAM_KEY = "key";
+    String PARAM_TYPE = "_type";
+    String PARAM_JSON = "_json";
+    String PARAM_IMAGE = "_image";
+    String PARAM_ELEMENT_ID = "_elementId";
+    String PARAM_FORM_ID = "_formId";
+    String PARAM_ASSIGNMENT_ID = "_assignmentId";
+    String PARAM_PROCESS_ID = "_processId";
+
     /**
      * Stream element children
      *
@@ -141,16 +154,16 @@ public interface DataListJasperMixin extends Declutter {
     }
 
     default Form generateForm(String formDefId, final Map<String, Form> formCache) throws KecakJasperException {
-        if(formCache.containsKey(formDefId)) {
+        if (formCache.containsKey(formDefId)) {
             return formCache.get(formDefId);
         }
 
         final AppDefinition appDefinition = AppUtil.getCurrentAppDefinition();
         final ApplicationContext appContext = AppUtil.getApplicationContext();
         final FormService formService = (FormService) appContext.getBean("formService");
-        final FormDefinitionDao formDefinitionDao = (FormDefinitionDao)appContext.getBean("formDefinitionDao");
+        final FormDefinitionDao formDefinitionDao = (FormDefinitionDao) appContext.getBean("formDefinitionDao");
 
-        if(appDefinition == null) {
+        if (appDefinition == null) {
             throw new KecakJasperException("Application definition is not available");
         }
 
@@ -159,7 +172,7 @@ public interface DataListJasperMixin extends Declutter {
                 .map(FormDefinition::getJson)
                 .map(formService::createElementFromJson)
                 .map(e -> (Form) e)
-                .orElseThrow(() -> new KecakJasperException("Error generating form ["+formDefId+"]"));
+                .orElseThrow(() -> new KecakJasperException("Error generating form [" + formDefId + "]"));
 
         formCache.put(formDefId, form);
 
@@ -245,7 +258,7 @@ public interface DataListJasperMixin extends Declutter {
                 .forEach(jrParameter -> {
                     String parameterName = jrParameter.getName();
                     String parameterValue = String.valueOf(jasperParameter.get(parameterName));
-                    if(filters.containsKey(parameterName)) {
+                    if (filters.containsKey(parameterName)) {
                         filters.get(parameterName).add(parameterValue);
                     } else {
                         filters.put(parameterName, Collections.singletonList(parameterValue));
@@ -301,17 +314,15 @@ public interface DataListJasperMixin extends Declutter {
 
 
     /**
-     *
      * @param prop
      * @param propertyName
      * @return
      */
     default String getOptionalProperty(PropertyEditable prop, String propertyName) {
-        return getOptionalProperty( prop, propertyName, "");
+        return getOptionalProperty(prop, propertyName, "");
     }
 
     /**
-     *
      * @param prop
      * @param propertyName
      * @param defaultValue
@@ -368,16 +379,17 @@ public interface DataListJasperMixin extends Declutter {
 
     @Nonnull
     default JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters) throws KecakJasperException {
-        DataList dataList = getDataList(dataListId);
+        final DataList dataList = getDataList(dataListId);
         getCollectFilters(dataList, filters);
 
-        DataListCollection<Map<String, Object>> rows = dataList.getRows();
-        if (rows == null || rows.isEmpty()) {
-            throw new KecakJasperException("Error retrieving row from dataList [" + dataListId + "]");
-        }
+        final DataListCollection<Map<String, Object>> rows = dataList.getRows();
+//        if (rows == null || rows.isEmpty()) {
+//            throw new KecakJasperException("Error retrieving row from dataList [" + dataListId + "]");
+//        }
 
-        JSONArray jsonArrayData = rows
-                .stream()
+        final JSONArray jsonArrayData = Optional.ofNullable(rows)
+                .map(Collection::stream)
+                .orElseGet(Stream::empty)
                 .map(m -> formatRow(dataList, m))
                 .map(JSONObject::new)
                 .collect(JSONCollectors.toJSONArray());
@@ -393,7 +405,6 @@ public interface DataListJasperMixin extends Declutter {
     }
 
     /**
-     *
      * @param content
      * @return
      */
@@ -427,7 +438,6 @@ public interface DataListJasperMixin extends Declutter {
     }
 
     /**
-     *
      * @param content
      * @param assignment
      * @return
@@ -606,7 +616,7 @@ public interface DataListJasperMixin extends Declutter {
      * @param <U>
      * @return
      */
-    default  <T, U extends T> T ifEmpty(T value, U failover) {
+    default <T, U extends T> T ifEmpty(T value, U failover) {
         return isEmpty(value) ? failover : value;
     }
 
@@ -617,7 +627,7 @@ public interface DataListJasperMixin extends Declutter {
      * @param <T>
      * @return
      */
-    default  <T> Predicate<T> not(Predicate<T> p) {
+    default <T> Predicate<T> not(Predicate<T> p) {
         return (t) -> !p.test(t);
     }
 }

@@ -5,21 +5,17 @@ import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
 import com.kinnara.kecakplugins.jasperreports.utils.DataListJasperMixin;
 import com.kinnarastudio.commons.Try;
 import net.sf.jasperreports.engine.JRException;
-import net.sf.jasperreports.engine.JRPrintImage;
 import net.sf.jasperreports.engine.JasperExportManager;
 import net.sf.jasperreports.engine.JasperPrint;
 import net.sf.jasperreports.engine.export.HtmlExporter;
 import net.sf.jasperreports.engine.export.JRXlsExporter;
-import net.sf.jasperreports.engine.type.ImageTypeEnum;
-import net.sf.jasperreports.engine.util.JRTypeSniffer;
 import net.sf.jasperreports.export.*;
-import net.sf.jasperreports.j2ee.servlets.BaseHttpServlet;
-import net.sf.jasperreports.renderers.SimpleDataRenderer;
 import net.sf.jasperreports.web.util.WebHtmlResourceHandler;
 import org.joget.apps.app.dao.UserviewDefinitionDao;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.UserviewDefinition;
 import org.joget.apps.app.service.AppUtil;
+import org.joget.apps.datalist.model.DataList;
 import org.joget.apps.userview.model.Userview;
 import org.joget.apps.userview.model.UserviewCategory;
 import org.joget.apps.userview.model.UserviewMenu;
@@ -31,30 +27,31 @@ import org.joget.plugin.base.PluginWebSupport;
 import org.joget.plugin.property.model.PropertyEditable;
 import org.joget.workflow.util.WorkflowUtil;
 import org.json.JSONObject;
+import org.kecak.apps.userview.model.AceUserviewMenu;
+import org.kecak.apps.userview.model.BootstrapUserviewTheme;
 import org.springframework.beans.BeansException;
 
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
-import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
-import java.sql.SQLException;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
  * @author aristo
- *
+ * <p>
  * Requires changes in core version 7635059fff56091b95948e4b314f989a06fbb51e
- *
  */
-public class DataListJasperMenu extends UserviewMenu implements DataListJasperMixin, PluginWebSupport {
+public class DataListJasperMenu extends UserviewMenu implements DataListJasperMixin, PluginWebSupport, AceUserviewMenu {
+
+
     public String getName() {
         return getLabel() + getVersion();
     }
@@ -86,48 +83,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
     @Override
     public String getRenderPage() {
-        try {
-            AppDefinition appDef = AppUtil.getCurrentAppDefinition();
-            String menuId = ifEmpty(getPropertyCustomId(this), getPropertyId(this));
-            String reportUrl = "/web/json/app/" + appDef.getAppId() + "/" + appDef.getVersion() + "/plugin/" + getClassName() + "/service?action=report&userviewId=" + this.getUserview().getPropertyString("id") + "&menuId=" + menuId;
-            if (!"true".equals(this.getRequestParameter("isPreview"))) {
-                for (String key : ((Map<String, String>) this.getRequestParameters()).keySet()) {
-                    if (key.matches("appId|appVersion|userviewId|menuId|isPreview|embed|contextPath")) continue;
-                    reportUrl = StringUtil.addParamsToUrl(reportUrl, key, this.getRequestParameterString(key));
-                }
-            }
-            this.setProperty("includeUrl", reportUrl);
-            String contextPath = AppUtil.getRequestContextPath();
-            String cssUrl = contextPath + "/plugin/" + getClassName() + "/css/jasper.css";
-            String header = "<link rel=\"stylesheet\" href=\"" + cssUrl + "\" />";
-            String customHeader = this.getPropertyString("customHeader");
-            if (customHeader != null) {
-                header = header + customHeader;
-            }
-            this.setProperty("includeHeader", header);
-            String pdfUrl = contextPath + reportUrl + "&type=pdf";
-            String excelUrl = contextPath + reportUrl + "&type=xls";
-            String footer = "<div class=\"exportlinks\">";
-            String exportProperty = this.getPropertyString("export");
-            if (exportProperty != null && exportProperty.contains("pdf")) {
-                footer = footer + "<a href=\"" + pdfUrl + "\" target=\"_blank\"><span class=\"export pdf\">PDF</span></a>";
-            }
-            if (exportProperty != null && exportProperty.contains("xls")) {
-                footer = footer + "<a href=\"" + excelUrl + "\" target=\"_blank\"><span class=\"export excel\">Excel</span></a>";
-            }
-            footer = footer + "</div>";
-            String customFooter = this.getPropertyString("customFooter");
-            if (customFooter != null) {
-                footer = footer + customFooter;
-            }
-            this.setProperty("includeFooter", footer);
-            String body = generateHtmlBody();
-            String result = header + body + footer;
-            return result;
-        } catch (Exception e) {
-            LogUtil.error(getClassName(), e, e.getMessage());
-            return e.getMessage();
-        }
+        return getRenderPage("/templates/DataListJasperMenu.ftl", "/templates/jasperError.ftl");
     }
 
     @Override
@@ -175,16 +131,16 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
         LogUtil.info(getClass().getName(), "Executing JSON Rest API [" + request.getRequestURI() + "] in method [" + request.getMethod() + "] as [" + WorkflowUtil.getCurrentUsername() + "]");
 
         try {
-            String action = getRequiredParameter(request, "action");
+            final String action = getRequiredParameter(request, PARAM_ACTION);
             if ("rows".equals(action)) {
                 boolean isAdmin = WorkflowUtil.isCurrentUserInRole(WorkflowUtil.ROLE_ADMIN);
                 if (!isAdmin) {
                     throw new ApiException(HttpServletResponse.SC_UNAUTHORIZED, "User [" + WorkflowUtil.getCurrentUsername() + "] is not admin");
                 }
 
-                String dataListId = getRequiredParameter(request, "dataListId");
+                final String dataListId = getRequiredParameter(request, PARAM_DATALIST_ID);
 
-                Map<String, List<String>> filters = Optional.of(request.getParameterMap())
+                final Map<String, List<String>> filters = Optional.of(request.getParameterMap())
                         .map(m -> (Map<String, String[]>) m)
                         .map(Map::entrySet)
                         .map(Collection::stream)
@@ -192,7 +148,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                         .filter(Objects::nonNull)
                         .collect(Collectors.toMap(Map.Entry::getKey, entry -> Arrays.asList(entry.getValue())));
 
-                JSONObject jsonResult = getDataListRow(dataListId, filters);
+                final JSONObject jsonResult = getDataListRow(dataListId, filters);
                 response.getWriter().write(jsonResult.toString());
 
                 return;
@@ -200,10 +156,10 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
             // get json url
             else if ("getJsonUrl".equals(action)) {
-                final String dataListId = getRequiredParameter(request, "dataListId");
+                final String dataListId = getRequiredParameter(request, PARAM_DATALIST_ID);
 
                 final JSONObject jsonObject = new JSONObject();
-                jsonObject.put("message", request.getRequestURL() + "?action=rows&dataListId=" + dataListId);
+                jsonObject.put("message", request.getRequestURL() + "?" + PARAM_ACTION + "=rows&" + PARAM_DATALIST_ID + "=" + dataListId);
 
                 response.getWriter().write(jsonObject.toString());
                 return;
@@ -211,11 +167,11 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
             // report
             else if ("report".equals(action)) {
-                final String userviewId = getRequiredParameter(request, "userviewId");
-                final String key = getRequiredParameter(request, "key");
-                final String menuId = getRequiredParameter(request, "menuId");
-                final String type = getRequiredParameter(request, "type");
-                final String json = getOptionalParameter(request, "json", "");
+                final String userviewId = getRequiredParameter(request, PARAM_USERVIEW_ID);
+                final String key = getRequiredParameter(request, PARAM_KEY);
+                final String menuId = getRequiredParameter(request, PARAM_MENU_ID);
+                final String type = getRequiredParameter(request, PARAM_TYPE);
+                final String json = getOptionalParameter(request, PARAM_JSON, "");
                 final String contextPath = request.getContextPath();
                 final Map parameterMap = request.getParameterMap();
 
@@ -234,9 +190,9 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             }
 
             // load image
-            else if("image".equals(action)) {
-                final String imageName = getRequiredParameter(request, "image").trim();
-                if ( !imageName.isEmpty( )) {
+            else if ("image".equals(action)) {
+                final String imageName = getRequiredParameter(request, PARAM_IMAGE).trim();
+                if (!imageName.isEmpty()) {
                     generateImage(request, response, imageName);
                     return;
                 }
@@ -288,7 +244,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
         return getMenuStream(userview)
                 .filter(u -> menuId.equals(getPropertyCustomId(u)) || menuId.equals(getPropertyId(u)))
                 .findFirst()
-                .orElseThrow(() -> new KecakJasperException("No matching menu [" + menuId + "] found in userview ["+userview.getPropertyString("id")+"]"));
+                .orElseThrow(() -> new KecakJasperException("No matching menu [" + menuId + "] found in userview [" + userview.getPropertyString("id") + "]"));
     }
 
     /**
@@ -308,7 +264,13 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                 .flatMap(Collection::stream);
     }
 
-    protected String generateHtmlBody() {
+    /**
+     * @param template
+     * @return
+     */
+    protected String generateHtmlBody(String template) throws IOException, KecakJasperException, JRException {
+        final PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
+
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             JasperPrint print = getJasperPrint(this, null);
             HtmlExporter jrHtmlExporter = new HtmlExporter();
@@ -316,7 +278,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             jrHtmlExporter.setExporterInput(exporterInput);
 
             SimpleHtmlExporterOutput exporterOutput = new SimpleHtmlExporterOutput(output, "UTF-8");
-            exporterOutput.setImageHandler(new WebHtmlResourceHandler(AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?action=image&image={0}"));
+            exporterOutput.setImageHandler(new WebHtmlResourceHandler(AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?" + PARAM_ACTION + "=image&" + PARAM_IMAGE + "={0}"));
 
             jrHtmlExporter.setExporterOutput(exporterOutput);
 
@@ -326,13 +288,8 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             }
 
             jrHtmlExporter.exportReport();
+
             return new String(output.toByteArray(), StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            LogUtil.error(getClassName(), e, e.getMessage());
-            HashMap<String, Exception> model = new HashMap<>();
-            model.put("exception", e);
-            PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
-            return pluginManager.getPluginFreeMarkerTemplate(model, this.getClass().getName(), "/templates/jasperError.ftl", null);
         }
     }
 
@@ -340,7 +297,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
         final String fileName = getFileName(menu);
         final JasperPrint print = getJasperPrint(menu, null);
 
-        try(final OutputStream output = response.getOutputStream()) {
+        try (final OutputStream output = response.getOutputStream()) {
             if ("pdf".equals(type)) {
                 response.setHeader("Content-Type", "application/pdf");
                 response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".pdf");
@@ -378,7 +335,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                 { // set exporter output
                     final SimpleHtmlExporterOutput exporterOutput = new SimpleHtmlExporterOutput(output);
                     { // set image handler
-                        final String imagesUriPattern = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?image={0}";
+                        final String imagesUriPattern = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?" + PARAM_IMAGE + "={0}";
                         final WebHtmlResourceHandler resourceHandler = new WebHtmlResourceHandler(imagesUriPattern);
                         exporterOutput.setImageHandler(resourceHandler);
                     }
@@ -408,6 +365,93 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
      */
     private String getFileName(PropertyEditable menu) {
         return ifEmpty(ifEmpty(getPropertyFileName(menu), getPropertyCustomId(menu)), getPropertyId(menu));
+    }
+
+    @Override
+    public String getAceJspPage(BootstrapUserviewTheme bootstrapUserviewTheme) {
+        return getJspPage();
+    }
+
+    @Override
+    public String getAceRenderPage() {
+        return getRenderPage("/templates/DataListJasperMenu.ftl", "/templates/jasperError.ftl");
+    }
+
+    @Override
+    public String getAceDecoratedMenu() {
+        return getDecoratedMenu();
+    }
+
+    protected String getRenderPage(String template, String errorTemplate) {
+        final PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
+        final AppDefinition appDef = AppUtil.getCurrentAppDefinition();
+
+        try {
+            final String menuId = ifEmpty(getPropertyCustomId(this), getPropertyId(this));
+            String reportUrl = "/web/json/app/" + appDef.getAppId() + "/" + appDef.getVersion() + "/plugin/" + getClassName() + "/service?" + PARAM_ACTION + "=report&" + PARAM_USERVIEW_ID + "=" + this.getUserview().getPropertyString("id") + "&" + PARAM_MENU_ID + "=" + menuId;
+            if (!"true".equals(getRequestParameter("isPreview"))) {
+                for (String key : ((Map<String, String>) this.getRequestParameters()).keySet()) {
+                    if (key.matches("appId|appVersion|userviewId|menuId|isPreview|embed|contextPath")) continue;
+                    reportUrl = StringUtil.addParamsToUrl(reportUrl, key, this.getRequestParameterString(key));
+                }
+            }
+            this.setProperty("includeUrl", reportUrl);
+            String contextPath = AppUtil.getRequestContextPath();
+            String cssUrl = contextPath + "/plugin/" + getClassName() + "/css/jasper.css";
+            String header = "<link rel=\"stylesheet\" href=\"" + cssUrl + "\" />";
+            String customHeader = this.getPropertyString("customHeader");
+            if (customHeader != null) {
+                header = header + customHeader;
+            }
+            this.setProperty("includeHeader", header);
+            String pdfUrl = contextPath + reportUrl + "&" + PARAM_TYPE + "=pdf";
+            String excelUrl = contextPath + reportUrl + "&" + PARAM_TYPE + "=xls";
+            String footer = "<div class=\"exportlinks\">";
+            String exportProperty = this.getPropertyString("export");
+            if (exportProperty != null && exportProperty.contains("pdf")) {
+                footer = footer + "<a href=\"" + pdfUrl + "\" target=\"_blank\"><span class=\"export pdf\">PDF</span></a>";
+            }
+            if (exportProperty != null && exportProperty.contains("xls")) {
+                footer = footer + "<a href=\"" + excelUrl + "\" target=\"_blank\"><span class=\"export excel\">Excel</span></a>";
+            }
+            footer = footer + "</div>";
+            String customFooter = this.getPropertyString("customFooter");
+            if (customFooter != null) {
+                footer = footer + customFooter;
+            }
+            setProperty("includeFooter", footer);
+
+            final Map<String, Object> model = new HashMap<>();
+            model.put("showDataListFilter", "true".equalsIgnoreCase(getPropertyString("showDataListFilter")));
+
+            final String dataListId = getPropertyString("dataListId");
+            model.put("dataListId", dataListId);
+
+            final DataList dataList = getDataList(dataListId);
+
+            // filter template
+            final List<String> filterTemplates = new ArrayList<>();
+
+            Pattern pagePattern = Pattern.compile("id='d-[0-9]+-p'|id='d-[0-9]+-ps'");
+            for (String filterTemplate : dataList.getFilterTemplates()) {
+                if (!pagePattern.matcher(filterTemplate).find()) {
+                    filterTemplates.add(filterTemplate);
+                }
+            }
+            model.put("filterTemplates", filterTemplates);
+
+            final String jasperContent = generateHtmlBody(template);
+            model.put("jasperContent", jasperContent);
+
+            model.put("customHeader", header);
+            model.put("customFooter", footer);
+            String result = pluginManager.getPluginFreeMarkerTemplate(model, getClass().getName(), template, null);
+            return result;
+        } catch (Exception e) {
+            LogUtil.error(getClassName(), e, e.getMessage());
+            final Map<String, Object> model = Collections.singletonMap("exception", e);
+            return pluginManager.getPluginFreeMarkerTemplate(model, getClass().getName(), errorTemplate, null);
+        }
     }
 }
 

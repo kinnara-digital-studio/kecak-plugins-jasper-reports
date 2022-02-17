@@ -46,7 +46,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
 
         dataModel.put("className", getClassName());
         dataModel.put("src", getElementValue(formData));
-        dataModel.put("ratio",this.getPropertyString("ratio"));
+        dataModel.put("ratio", this.getPropertyString("ratio"));
 
         FormUtil.setReadOnlyProperty(this);
 
@@ -116,7 +116,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
         LogUtil.info(getClass().getName(), "Executing JSON Rest API [" + request.getRequestURI() + "] in method [" + request.getMethod() + "] as [" + WorkflowUtil.getCurrentUsername() + "]");
 
         try {
-            final String action = getRequiredParameter(request, "_action");
+            final String action = getRequiredParameter(request, PARAM_ACTION);
 
             // ROWS DATA
             if ("rows".equals(action)) {
@@ -125,7 +125,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                     throw new ApiException(HttpServletResponse.SC_UNAUTHORIZED, "User [" + WorkflowUtil.getCurrentUsername() + "] is not admin");
                 }
 
-                final String dataListId = getRequiredParameter(request, "_dataListId");
+                final String dataListId = getRequiredParameter(request, PARAM_DATALIST_ID);
 
                 final Map<String, List<String>> filters = Optional.of(request.getParameterMap())
                         .map(m -> (Map<String, String[]>) m)
@@ -143,42 +143,42 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
 
             // JSON URL
             else if ("getJsonUrl".equals(action)) {
-                final String dataListId = getRequiredParameter(request, "dataListId");
+                final String dataListId = getRequiredParameter(request, PARAM_DATALIST_ID);
 
                 JSONObject jsonObject = new JSONObject();
-                jsonObject.put("message", request.getRequestURL() + "?_action=rows&_dataListId=" + dataListId);
+                jsonObject.put("message", request.getRequestURL() + "?" + PARAM_ACTION + "=rows&" + PARAM_DATALIST_ID + "=" + dataListId);
 
                 response.getWriter().write(jsonObject.toString());
                 return;
             }
 
             // REPORT
-            else if("report".equalsIgnoreCase(action)) {
-                final String formDefId = getRequiredParameter(request, "_formId");
-                final String elementId = getRequiredParameter(request, "_elementId");
+            else if ("report".equalsIgnoreCase(action)) {
+                final String formDefId = getRequiredParameter(request, PARAM_FORM_ID);
+                final String elementId = getRequiredParameter(request, PARAM_ELEMENT_ID);
                 final String primaryKey = getRequiredParameter(request, "id");
-                final String type = getRequiredParameter(request, "_type");
-                final String assignmentId = getOptionalParameter(request, "_assignmentId", "");
-                final String processId = getOptionalParameter(request, "_processId", "");
+                final String type = getRequiredParameter(request, PARAM_TYPE);
+                final String assignmentId = getOptionalParameter(request, PARAM_ASSIGNMENT_ID, "");
+                final String processId = getOptionalParameter(request, PARAM_PROCESS_ID, "");
 
-                if("pdf".equalsIgnoreCase(type)) {
+                if ("pdf".equalsIgnoreCase(type)) {
                     final Form form = generateForm(formDefId, formCache);
 
                     final FormData formData = new FormData();
                     formData.setPrimaryKeyValue(primaryKey);
 
-                    if(!assignmentId.isEmpty()) {
+                    if (!assignmentId.isEmpty()) {
                         formData.setActivityId(assignmentId);
                     }
 
-                    if(!processId.isEmpty()) {
+                    if (!processId.isEmpty()) {
                         formData.setProcessId(processId);
                     }
 
                     final JasperViewerElement element = (JasperViewerElement) elementStream(form, formData)
                             .filter(e -> elementId.equals(e.getPropertyString("id")) && e instanceof JasperViewerElement)
                             .findFirst()
-                            .orElseThrow(() -> new ApiException(HttpServletResponse.SC_NOT_FOUND, "Element [" +elementId + "] is not found in form [" + formDefId + "]"));
+                            .orElseThrow(() -> new ApiException(HttpServletResponse.SC_NOT_FOUND, "Element [" + elementId + "] is not found in form [" + formDefId + "]"));
 
                     generateReport(element, formData, type, request, response);
                 } else {
@@ -187,9 +187,9 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
             }
 
             // LOAD IMAGE
-            else if("image".equals(action)) {
+            else if ("image".equals(action)) {
                 final String imageName = getRequiredParameter(request, "image").trim();
-                if ( !imageName.isEmpty( )) {
+                if (!imageName.isEmpty()) {
                     generateImage(request, response, imageName);
                     return;
                 }
@@ -211,13 +211,13 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
         }
     }
 
-    protected void generateReport(@Nonnull JasperViewerElement element, @Nonnull final FormData formData,  String type, HttpServletRequest request, HttpServletResponse response) throws JRException, BeansException, SQLException, KecakJasperException {
+    protected void generateReport(@Nonnull JasperViewerElement element, @Nonnull final FormData formData, String type, HttpServletRequest request, HttpServletResponse response) throws JRException, BeansException, SQLException, KecakJasperException {
         final WorkflowManager workflowManager = (WorkflowManager) AppUtil.getApplicationContext().getBean("workflowManager");
         final String fileName = element.getFilename();
         final WorkflowAssignment workflowAssignment = workflowManager.getAssignment(formData.getActivityId());
         final JasperPrint print = getJasperPrint(element, workflowAssignment);
 
-        try(final OutputStream output = response.getOutputStream()) {
+        try (final OutputStream output = response.getOutputStream()) {
             if ("pdf".equals(type)) {
                 response.setHeader("Content-Type", "application/pdf");
                 response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".pdf");
@@ -255,7 +255,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                 { // set exporter output
                     final SimpleHtmlExporterOutput exporterOutput = new SimpleHtmlExporterOutput(output);
                     { // set image handler
-                        final String imagesUriPattern = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?image={0}";
+                        final String imagesUriPattern = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?" + PARAM_IMAGE + "={0}";
                         final WebHtmlResourceHandler resourceHandler = new WebHtmlResourceHandler(imagesUriPattern);
                         exporterOutput.setImageHandler(resourceHandler);
                     }
@@ -288,24 +288,24 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                 .orElse(null);
 
         final Form form = FormUtil.findRootForm(this);
-        if(form == null) {
+        if (form == null) {
             return "";
         }
 
         final String formDefId = form.getPropertyString(FormUtil.PROPERTY_ID);
 
-        final String assignmentParameter = workflowAssignment == null ? "" : ("&_assignmentId="
+        final String assignmentParameter = workflowAssignment == null ? "" : ("&" + PARAM_ASSIGNMENT_ID + "="
                 + workflowAssignment.getActivityId()
-                + "&_processId="
+                + "&" + PARAM_PROCESS_ID + "="
                 + workflowAssignment.getProcessId());
 
         final String url = "/web/json/app/"
-                + appDefinition.getAppId()+ "/"
+                + appDefinition.getAppId() + "/"
                 + appDefinition.getVersion() + "/plugin/"
-                + getClassName() + "/service?_action=report&id="
-                + formData.getPrimaryKeyValue() + "&_formId="
-                + formDefId + "&_elementId="
-                + getPropertyString("id") + "&_type=pdf"
+                + getClassName() + "/service?" + PARAM_ACTION + "=report&id="
+                + formData.getPrimaryKeyValue() + "&" + PARAM_FORM_ID + "="
+                + formDefId + "&" + PARAM_ELEMENT_ID + "="
+                + getPropertyString("id") + "&" + PARAM_TYPE + "=pdf"
                 + assignmentParameter;
 
         return AppUtil.processHashVariable(url, workflowAssignment, null, null);

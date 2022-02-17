@@ -116,7 +116,7 @@
             {
                 "name": "getJsonUrl",
                 "label": "@@userview.jasperReports.getJsonUrl@@",
-                "ajax_url": "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?action=getJsonUrl",
+                "ajax_url": "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?_action=getJsonUrl",
                 "fields": ["dataListId"]
             }
         ]
@@ -199,6 +199,18 @@
     {
         "title" : "@@userview.jasperReports.ui@@",
         "properties" : [
+            {
+                "name": "showDataListFilter",
+                "label" : "@@userview.jasperReports.showDataListFilter@@",
+                "type" : "checkbox",
+                "value": "",
+                "options": [
+                    {
+                        "value": "true",
+                        "label": ""
+                    }
+                ]
+            },
             {
                 "name" : "customHeader",
                 "label" : "@@userview.jasperReports.customHeader@@",
