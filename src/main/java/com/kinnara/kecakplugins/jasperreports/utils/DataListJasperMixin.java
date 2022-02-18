@@ -57,7 +57,7 @@ public interface DataListJasperMixin extends Declutter {
     String PARAM_DATALIST_ID = "_dataListId";
     String PARAM_USERVIEW_ID = "_userviewId";
     String PARAM_MENU_ID = "_menuId";
-    String PARAM_KEY = "_key";
+    String PARAM_KEY = "key";
     String PARAM_TYPE = "_type";
     String PARAM_JSON = "_json";
     String PARAM_IMAGE = "_image";
