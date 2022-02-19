@@ -143,7 +143,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
 
             // JSON URL
             else if ("getJsonUrl".equals(action)) {
-                final String dataListId = getRequiredParameter(request, PARAM_DATALIST_ID);
+                final String dataListId = getRequiredParameter(request, "dataListId");
 
                 JSONObject jsonObject = new JSONObject();
                 jsonObject.put("message", request.getRequestURL() + "?" + PARAM_ACTION + "=rows&" + PARAM_DATALIST_ID + "=" + dataListId);

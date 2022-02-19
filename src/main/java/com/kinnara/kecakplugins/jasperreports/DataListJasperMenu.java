@@ -156,7 +156,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
             // get json url
             else if ("getJsonUrl".equals(action)) {
-                final String dataListId = getRequiredParameter(request, PARAM_DATALIST_ID);
+                final String dataListId = getRequiredParameter(request, "dataListId");
 
                 final JSONObject jsonObject = new JSONObject();
                 jsonObject.put("message", request.getRequestURL() + "?" + PARAM_ACTION + "=rows&" + PARAM_DATALIST_ID + "=" + dataListId);
