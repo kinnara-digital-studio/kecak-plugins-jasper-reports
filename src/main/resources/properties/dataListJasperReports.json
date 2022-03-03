@@ -50,6 +50,25 @@
                 ]
             },
             {
+                "name" : "dataListSortBy",
+                "label": "@@userview.jasperReports.dataListSortBy@@",
+                "type" : "selectbox",
+                "options_ajax_on_change": "dataListId",
+                "options_ajax": "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?_action=fieldsOptions"
+            },
+            {
+                "name": "dataListSortDescending",
+                "label": "@@userview.jasperReports.dataListSortDescending@@",
+                "type": "checkbox",
+                "value": "",
+                "options": [
+                    {
+                        "value": "true",
+                        "label": ""
+                    }
+                ]
+            },
+            {
                 "name": "useRestApiDriver",
                 "label": "@@userview.jasperReports.useRestApiDriver@@",
                 "value": "",

@@ -2,8 +2,10 @@ package com.kinnara.kecakplugins.jasperreports;
 
 import com.kinnara.kecakplugins.jasperreports.exception.ApiException;
 import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
+import com.kinnara.kecakplugins.jasperreports.model.ReportSettings;
 import com.kinnara.kecakplugins.jasperreports.utils.DataListJasperMixin;
 import com.kinnarastudio.commons.Try;
+import com.kinnarastudio.commons.jsonstream.JSONCollectors;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JasperExportManager;
 import net.sf.jasperreports.engine.JasperPrint;
@@ -16,6 +18,7 @@ import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.UserviewDefinition;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.datalist.model.DataList;
+import org.joget.apps.form.service.FormUtil;
 import org.joget.apps.userview.model.Userview;
 import org.joget.apps.userview.model.UserviewCategory;
 import org.joget.apps.userview.model.UserviewMenu;
@@ -26,6 +29,7 @@ import org.joget.plugin.base.PluginManager;
 import org.joget.plugin.base.PluginWebSupport;
 import org.joget.plugin.property.model.PropertyEditable;
 import org.joget.workflow.util.WorkflowUtil;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.kecak.apps.userview.model.AceUserviewMenu;
 import org.kecak.apps.userview.model.BootstrapUserviewTheme;
@@ -113,7 +117,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
     @Override
     public String getPropertyOptions() {
-        Object[] arguments = new Object[]{getClassName()};
+        Object[] arguments = new Object[]{getClassName(), getClassName()};
         String json = AppUtil.readPluginResource(getClassName(), "/properties/dataListJasperReports.json", arguments, true, "message/jasperReports");
         return json;
     }
@@ -148,9 +152,29 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                         .filter(Objects::nonNull)
                         .collect(Collectors.toMap(Map.Entry::getKey, entry -> Arrays.asList(entry.getValue())));
 
-                final JSONObject jsonResult = getDataListRow(dataListId, filters);
+                final String sort = getPropertyString("dataListSortBy");
+                final boolean desc = "true".equalsIgnoreCase(getPropertyString("dataListSortDescending"));
+
+                final JSONObject jsonResult = getDataListRow(dataListId, filters, sort, desc);
                 response.getWriter().write(jsonResult.toString());
 
+                return;
+            }
+
+            // get datalist fields
+            else if("fieldsOptions".equals(action)) {
+                final String dataListId = getRequiredParameter(request, "dataListId");
+                final DataList dataList = getDataList(dataListId);
+                final JSONArray jsonResponse = Arrays.stream(dataList.getColumns())
+                        .map(Try.onFunction(c -> {
+                            final JSONObject json = new JSONObject();
+                            json.put(FormUtil.PROPERTY_VALUE, c.getName());
+                            json.put(FormUtil.PROPERTY_LABEL, c.getLabel());
+                            return json;
+                        }))
+                        .collect(JSONCollectors.toJSONArray());
+
+                response.getWriter().write(jsonResponse.toString());
                 return;
             }
 
@@ -174,6 +198,8 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                 final String json = getOptionalParameter(request, PARAM_JSON, "");
                 final String contextPath = request.getContextPath();
                 final Map parameterMap = request.getParameterMap();
+                final String sort = getOptionalParameter(request, PARAM_SORT, "");
+                final boolean desc = "true".equalsIgnoreCase(getOptionalParameter(request, PARAM_DESC, ""));
 
                 final AppDefinition appDef = AppUtil.getCurrentAppDefinition();
 
@@ -184,7 +210,10 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                         .orElse(Optional.ofNullable(findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap))
                                 .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Menu [" + menuId + "] is not available in userview [" + userviewId + "]")));
 
-                generateReport(selectedMenu, type, request, response);
+                final boolean useVirtualizer = getPropertyUseVirtualizer(selectedMenu);
+                final String jrxml = getPropertyJrxml(selectedMenu, null);
+                final ReportSettings settings = new ReportSettings(sort, desc, useVirtualizer, jrxml);
+                generateReport(selectedMenu, type, request, response, settings);
 
                 return;
             }
@@ -265,19 +294,16 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
     }
 
     /**
-     * @param template
      * @return
      */
-    protected String generateHtmlBody(String template) throws IOException, KecakJasperException, JRException {
-        final PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
-
+    protected String generateHtmlBody(ReportSettings setting) throws IOException, KecakJasperException, JRException {
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            JasperPrint print = getJasperPrint(this, null);
-            HtmlExporter jrHtmlExporter = new HtmlExporter();
-            ExporterInput exporterInput = SimpleExporterInput.getInstance(Collections.singletonList(print));
+            final JasperPrint print = getJasperPrint(this, null, setting);
+            final HtmlExporter jrHtmlExporter = new HtmlExporter();
+            final ExporterInput exporterInput = SimpleExporterInput.getInstance(Collections.singletonList(print));
             jrHtmlExporter.setExporterInput(exporterInput);
 
-            SimpleHtmlExporterOutput exporterOutput = new SimpleHtmlExporterOutput(output, "UTF-8");
+            final SimpleHtmlExporterOutput exporterOutput = new SimpleHtmlExporterOutput(output, "UTF-8");
             exporterOutput.setImageHandler(new WebHtmlResourceHandler(AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?" + PARAM_ACTION + "=image&" + PARAM_IMAGE + "={0}"));
 
             jrHtmlExporter.setExporterOutput(exporterOutput);
@@ -293,9 +319,9 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
         }
     }
 
-    protected void generateReport(@Nonnull UserviewMenu menu, String type, HttpServletRequest request, HttpServletResponse response) throws JRException, BeansException, KecakJasperException {
+    protected void generateReport(@Nonnull UserviewMenu menu, String type, HttpServletRequest request, HttpServletResponse response, ReportSettings settings) throws JRException, BeansException, KecakJasperException {
         final String fileName = getFileName(menu);
-        final JasperPrint print = getJasperPrint(menu, null);
+        final JasperPrint print = getJasperPrint(menu, null, settings);
 
         try (final OutputStream output = response.getOutputStream()) {
             if ("pdf".equals(type)) {
@@ -440,7 +466,12 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             }
             model.put("filterTemplates", filterTemplates);
 
-            final String jasperContent = generateHtmlBody(template);
+            final String sort = getPropertyString("dataListSortBy");
+            final boolean desc = "true".equalsIgnoreCase(getPropertyString("dataListSortDescending"));
+            final boolean useVirtualizer = getPropertyUseVirtualizer(this);
+            final String jrxml = getPropertyJrxml(this, null);
+            final ReportSettings setting = new ReportSettings(sort, desc, useVirtualizer, jrxml);
+            final String jasperContent = generateHtmlBody(setting);
             model.put("jasperContent", jasperContent);
 
             model.put("customHeader", header);

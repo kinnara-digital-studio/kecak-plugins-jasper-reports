@@ -2,6 +2,7 @@ package com.kinnara.kecakplugins.jasperreports;
 
 import com.kinnara.kecakplugins.jasperreports.exception.ApiException;
 import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
+import com.kinnara.kecakplugins.jasperreports.model.ReportSettings;
 import com.kinnara.kecakplugins.jasperreports.utils.DataListJasperMixin;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JasperExportManager;
@@ -135,7 +136,9 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                         .filter(Objects::nonNull)
                         .collect(Collectors.toMap(Map.Entry::getKey, entry -> Arrays.asList(entry.getValue())));
 
-                final JSONObject jsonResult = getDataListRow(dataListId, filters);
+                final String sort = getOptionalParameter(request, PARAM_SORT, "");
+                final boolean desc = "true".equalsIgnoreCase(getOptionalParameter(request, PARAM_DESC, ""));
+                final JSONObject jsonResult = getDataListRow(dataListId, filters, sort, desc);
                 response.getWriter().write(jsonResult.toString());
 
                 return;
@@ -215,7 +218,13 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
         final WorkflowManager workflowManager = (WorkflowManager) AppUtil.getApplicationContext().getBean("workflowManager");
         final String fileName = element.getFilename();
         final WorkflowAssignment workflowAssignment = workflowManager.getAssignment(formData.getActivityId());
-        final JasperPrint print = getJasperPrint(element, workflowAssignment);
+
+        final String sort = element.getPropertyString("dataListSortBy");
+        final boolean desc = "true".equalsIgnoreCase(element.getPropertyString("dataListSortDesc"));
+        final boolean useVirtualizer = getPropertyUseVirtualizer(element);
+        final String jrxml = getPropertyJrxml(element, workflowAssignment);
+        final ReportSettings settings = new ReportSettings(sort, desc, useVirtualizer, jrxml);
+        final JasperPrint print = getJasperPrint(element, workflowAssignment, settings);
 
         try (final OutputStream output = response.getOutputStream()) {
             if ("pdf".equals(type)) {

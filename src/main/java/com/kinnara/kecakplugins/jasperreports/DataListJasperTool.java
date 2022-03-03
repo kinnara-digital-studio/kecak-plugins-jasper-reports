@@ -2,6 +2,7 @@ package com.kinnara.kecakplugins.jasperreports;
 
 import com.kinnara.kecakplugins.jasperreports.exception.ApiException;
 import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
+import com.kinnara.kecakplugins.jasperreports.model.ReportSettings;
 import com.kinnara.kecakplugins.jasperreports.utils.DataListJasperMixin;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JasperExportManager;
@@ -60,7 +61,11 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
             File outputFile = getTempOutputFile(map);
             try (OutputStream fos = new FileOutputStream(outputFile);
                  OutputStream bos = new BufferedOutputStream(fos)) {
-                JasperPrint jasperPrint = getJasperPrint(this, workflowAssignment);
+
+                final boolean useVirtualizer = getPropertyUseVirtualizer(this);
+                final String jrxml = getPropertyJrxml(this, workflowAssignment);
+                final ReportSettings setting = new ReportSettings("id", false, useVirtualizer, jrxml);
+                final JasperPrint jasperPrint = getJasperPrint(this, workflowAssignment, setting);
                 JasperExportManager.exportReportToPdfStream(jasperPrint, bos);
 
                 FormData storingFormData = submitForm(map, outputFile);
@@ -127,7 +132,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
                         .collect(Collectors.toMap(Map.Entry::getKey, entry -> Arrays.asList(entry.getValue())));
 
                 try {
-                    JSONObject jsonResult = getDataListRow(dataListId, filters);
+                    JSONObject jsonResult = getDataListRow(dataListId, filters, null, false);
                     response.getWriter().write(jsonResult.toString());
                 } catch (KecakJasperException e) {
                     throw new ApiException(HttpServletResponse.SC_BAD_REQUEST, e);

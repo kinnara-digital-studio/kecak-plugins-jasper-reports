@@ -2,6 +2,7 @@ package com.kinnara.kecakplugins.jasperreports.utils;
 
 import com.kinnara.kecakplugins.jasperreports.exception.ApiException;
 import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
+import com.kinnara.kecakplugins.jasperreports.model.ReportSettings;
 import com.kinnarastudio.commons.Declutter;
 import com.kinnarastudio.commons.jsonstream.JSONCollectors;
 import net.sf.jasperreports.engine.*;
@@ -29,6 +30,7 @@ import org.joget.apps.form.model.Form;
 import org.joget.apps.form.model.FormData;
 import org.joget.apps.form.service.FormService;
 import org.joget.apps.userview.model.UserviewMenu;
+import org.joget.commons.util.LogUtil;
 import org.joget.commons.util.SetupManager;
 import org.joget.plugin.property.model.PropertyEditable;
 import org.joget.workflow.model.WorkflowAssignment;
@@ -38,6 +40,7 @@ import org.json.JSONObject;
 import org.springframework.context.ApplicationContext;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
@@ -65,6 +68,8 @@ public interface DataListJasperMixin extends Declutter {
     String PARAM_FORM_ID = "_formId";
     String PARAM_ASSIGNMENT_ID = "_assignmentId";
     String PARAM_PROCESS_ID = "_processId";
+    String PARAM_SORT = "_sort";
+    String PARAM_DESC = "_desc";
 
     /**
      * Stream element children
@@ -86,8 +91,8 @@ public interface DataListJasperMixin extends Declutter {
     }
 
     @Nonnull
-    default JasperPrint getJasperPrint(@Nonnull PropertyEditable prop, WorkflowAssignment workflowAssignment) throws KecakJasperException {
-        String jrxml = getPropertyJrxml(prop, workflowAssignment);
+    default JasperPrint getJasperPrint(@Nonnull PropertyEditable prop, WorkflowAssignment workflowAssignment, ReportSettings settings) throws KecakJasperException {
+        String jrxml = settings.getJrxml();
 
         if (!JasperCompileManager.class.getClassLoader().equals(UserviewMenu.class.getClassLoader())) {
             jrxml = jrxml.replaceAll("language=\"groovy\"", "");
@@ -97,7 +102,7 @@ public interface DataListJasperMixin extends Declutter {
             final JasperReport report = JasperCompileManager.compileReport(input);
             final Map<String, Object> jasperParameters = getPropertyJasperParameter(prop, workflowAssignment);
 
-            if (getPropertyUseVirtualizer(prop)) {
+            if (settings.isUseVirtualizer()) {
                 final String path = SetupManager.getBaseDirectory() + "temp_jasper_swap";
                 final File filepath = new File(path);
                 if (!filepath.exists()) {
@@ -109,7 +114,7 @@ public interface DataListJasperMixin extends Declutter {
 
             final String dataListId = getPropertyDataListId(prop, workflowAssignment);
             final Map<String, List<String>> filters = getPropertyDataListFilter(prop, report, workflowAssignment);
-            final JSONObject jsonResult = getDataListRow(dataListId, filters);
+            final JSONObject jsonResult = getDataListRow(dataListId, filters, settings.getSort(), settings.isDesc());
 
             try (final InputStream inputStream = new ByteArrayInputStream(jsonResult.toString().getBytes())) {
                 final JRDataSource ds = new JsonDataSource(inputStream, "data");
@@ -193,12 +198,12 @@ public interface DataListJasperMixin extends Declutter {
     /**
      * Get property "use_virtualizer"
      *
-     * @param menu
+     * @param propertyEditable
      * @return
      */
-    default boolean getPropertyUseVirtualizer(PropertyEditable menu) {
+    default boolean getPropertyUseVirtualizer(PropertyEditable propertyEditable) {
         return Optional.of("useVirtualizer")
-                .map(menu::getPropertyString)
+                .map(propertyEditable::getPropertyString)
                 .map("true"::equalsIgnoreCase)
                 .orElse(false);
     }
@@ -378,14 +383,18 @@ public interface DataListJasperMixin extends Declutter {
      */
 
     @Nonnull
-    default JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters) throws KecakJasperException {
+    default JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters, @Nonnull String sort, boolean desc) throws KecakJasperException {
         final DataList dataList = getDataList(dataListId);
         getCollectFilters(dataList, filters);
 
-        final DataListCollection<Map<String, Object>> rows = dataList.getRows();
-//        if (rows == null || rows.isEmpty()) {
-//            throw new KecakJasperException("Error retrieving row from dataList [" + dataListId + "]");
-//        }
+        if(!sort.isEmpty()) {
+            dataList.setDefaultSortColumn(sort);
+
+            // order ASC / DESC
+            dataList.setDefaultOrder(desc ? DataList.ORDER_DESCENDING_VALUE : DataList.ORDER_ASCENDING_VALUE);
+        }
+
+        final DataListCollection<Map<String, Object>> rows = dataList.getRows(Integer.MAX_VALUE, 0);
 
         final JSONArray jsonArrayData = Optional.ofNullable(rows)
                 .map(Collection::stream)
