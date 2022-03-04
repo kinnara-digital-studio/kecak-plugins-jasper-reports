@@ -152,6 +152,10 @@
                     {
                         "value" : "html",
                         "label" : "HTML"
+                    },
+                    {
+                        "value" : "pdf",
+                        "label" : "PDF"
                     }
                 ]
             },

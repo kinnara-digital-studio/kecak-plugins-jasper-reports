@@ -87,7 +87,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
     @Override
     public String getRenderPage() {
-        return getRenderPage("/templates/DataListJasperMenu.ftl", "/templates/jasperError.ftl");
+        return getRenderPage("/templates/DataListJasperMenu.ftl", "/templates/DataListJasperMenuPdf.ftl", "/templates/jasperError.ftl");
     }
 
     @Override
@@ -162,7 +162,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             }
 
             // get datalist fields
-            else if("fieldsOptions".equals(action)) {
+            else if ("fieldsOptions".equals(action)) {
                 final String dataListId = getRequiredParameter(request, "dataListId");
                 final DataList dataList = getDataList(dataListId);
                 final JSONArray jsonResponse = Arrays.stream(dataList.getColumns())
@@ -319,6 +319,15 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
         }
     }
 
+    protected String generatePdfBody(String pdfTemplate, String userviewId, String menuId, ReportSettings settings) {
+        final AppDefinition appDefinition = AppUtil.getCurrentAppDefinition();
+        final PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
+        final Map<String, Object> model = new HashMap<>();
+        model.put("ratio", "4by3");
+        model.put("src", "/web/json/app/" + appDefinition.getAppId() + "/" + appDefinition.getVersion() + "/plugin/" + getClassName() + "/service?_action=report&_menuId=" + menuId + "&key=_&_userviewId=" + userviewId + "&_type=pdf");
+        return pluginManager.getPluginFreeMarkerTemplate(model, getClass().getName(), pdfTemplate, null);
+    }
+
     protected void generateReport(@Nonnull UserviewMenu menu, String type, HttpServletRequest request, HttpServletResponse response, ReportSettings settings) throws JRException, BeansException, KecakJasperException {
         final String fileName = getFileName(menu);
         final JasperPrint print = getJasperPrint(menu, null, settings);
@@ -400,7 +409,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
     @Override
     public String getAceRenderPage() {
-        return getRenderPage("/templates/DataListJasperMenu.ftl", "/templates/jasperError.ftl");
+        return getRenderPage("/templates/DataListJasperMenu.ftl", "/templates/DataListJasperMenuPdf.ftl", "/templates/jasperError.ftl");
     }
 
     @Override
@@ -408,14 +417,17 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
         return getDecoratedMenu();
     }
 
-    protected String getRenderPage(String template, String errorTemplate) {
+    protected String getRenderPage(String template, String pdfTemplate, String errorTemplate) {
         final PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
         final AppDefinition appDef = AppUtil.getCurrentAppDefinition();
 
         try {
+
+            final String userviewId = this.getUserview().getPropertyString("id");
             final String menuId = ifEmpty(getPropertyCustomId(this), getPropertyId(this));
-            String reportUrl = "/web/json/app/" + appDef.getAppId() + "/" + appDef.getVersion() + "/plugin/" + getClassName() + "/service?" + PARAM_ACTION + "=report&" + PARAM_USERVIEW_ID + "=" + this.getUserview().getPropertyString("id") + "&" + PARAM_MENU_ID + "=" + menuId;
-            if (!"true".equals(getRequestParameter("isPreview"))) {
+            String reportUrl = "/web/json/app/" + appDef.getAppId() + "/" + appDef.getVersion() + "/plugin/" + getClassName() + "/service?" + PARAM_ACTION + "=report&" + PARAM_USERVIEW_ID + "=" + userviewId + "&" + PARAM_MENU_ID + "=" + menuId;
+            final boolean isPreview = "true".equals(getRequestParameter("isPreview"));
+            if (!isPreview) {
                 for (String key : ((Map<String, String>) this.getRequestParameters()).keySet()) {
                     if (key.matches("appId|appVersion|userviewId|menuId|isPreview|embed|contextPath")) continue;
                     reportUrl = StringUtil.addParamsToUrl(reportUrl, key, this.getRequestParameterString(key));
@@ -471,14 +483,28 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             final boolean useVirtualizer = getPropertyUseVirtualizer(this);
             final String jrxml = getPropertyJrxml(this, null);
             final ReportSettings setting = new ReportSettings(sort, desc, useVirtualizer, jrxml);
-            final String jasperContent = generateHtmlBody(setting);
-            model.put("jasperContent", jasperContent);
 
+            final String outputType = getPropertyString("output");
+            final String jasperContent;
+            // PDF
+            if ("pdf".equalsIgnoreCase(outputType)) {
+                jasperContent = generatePdfBody(pdfTemplate, userviewId, menuId, setting);
+            }
+
+            // HTML
+            else {
+                jasperContent = generateHtmlBody(setting);
+            }
+
+            model.put("jasperContent", jasperContent);
             model.put("customHeader", header);
             model.put("customFooter", footer);
+
             String result = pluginManager.getPluginFreeMarkerTemplate(model, getClass().getName(), template, null);
             return result;
-        } catch (Exception e) {
+
+        } catch (
+                Exception e) {
             LogUtil.error(getClassName(), e, e.getMessage());
             final Map<String, Object> model = Collections.singletonMap("exception", e);
             return pluginManager.getPluginFreeMarkerTemplate(model, getClass().getName(), errorTemplate, null);
