@@ -13,6 +13,7 @@ import net.sf.jasperreports.export.*;
 import net.sf.jasperreports.web.util.WebHtmlResourceHandler;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.service.AppUtil;
+import org.joget.apps.datalist.model.DataList;
 import org.joget.apps.form.model.Element;
 import org.joget.apps.form.model.Form;
 import org.joget.apps.form.model.FormBuilderPaletteElement;
@@ -20,6 +21,7 @@ import org.joget.apps.form.model.FormData;
 import org.joget.apps.form.service.FormUtil;
 import org.joget.commons.util.LogUtil;
 import org.joget.plugin.base.PluginWebSupport;
+import org.joget.plugin.property.model.PropertyEditable;
 import org.joget.workflow.model.WorkflowAssignment;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.util.WorkflowUtil;
@@ -183,7 +185,9 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                             .findFirst()
                             .orElseThrow(() -> new ApiException(HttpServletResponse.SC_NOT_FOUND, "Element [" + elementId + "] is not found in form [" + formDefId + "]"));
 
-                    generateReport(element, formData, type, request, response);
+                    final String dataListId = element.getPropertyDataListId(null);
+                    final DataList dataList = getDataList(dataListId, null);
+                    generateReport(element, dataList, formData, type, request, response);
                 } else {
                     throw new ApiException(HttpServletResponse.SC_NOT_FOUND, "Jasper type [" + type + "] is not supported");
                 }
@@ -214,7 +218,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
         }
     }
 
-    protected void generateReport(@Nonnull JasperViewerElement element, @Nonnull final FormData formData, String type, HttpServletRequest request, HttpServletResponse response) throws JRException, BeansException, SQLException, KecakJasperException {
+    protected void generateReport(@Nonnull JasperViewerElement element, @Nonnull DataList dataList, @Nonnull final FormData formData, String type, HttpServletRequest request, HttpServletResponse response) throws JRException, BeansException, SQLException, KecakJasperException {
         final WorkflowManager workflowManager = (WorkflowManager) AppUtil.getApplicationContext().getBean("workflowManager");
         final String fileName = element.getFilename();
         final WorkflowAssignment workflowAssignment = workflowManager.getAssignment(formData.getActivityId());
@@ -224,7 +228,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
         final boolean useVirtualizer = getPropertyUseVirtualizer(element);
         final String jrxml = getPropertyJrxml(element, workflowAssignment);
         final ReportSettings settings = new ReportSettings(sort, desc, useVirtualizer, jrxml);
-        final JasperPrint print = getJasperPrint(element, workflowAssignment, settings);
+        final JasperPrint print = getJasperPrint(element, dataList, workflowAssignment, settings);
 
         try (final OutputStream output = response.getOutputStream()) {
             if ("pdf".equals(type)) {
@@ -320,4 +324,8 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
         return AppUtil.processHashVariable(url, workflowAssignment, null, null);
     }
 
+
+    protected String getPropertyDataListId(WorkflowAssignment assignment) throws KecakJasperException {
+        return getRequiredProperty(this, "dataListId", assignment);
+    }
 }

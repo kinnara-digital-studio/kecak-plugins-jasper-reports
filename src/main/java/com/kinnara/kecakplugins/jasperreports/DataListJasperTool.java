@@ -9,6 +9,7 @@ import net.sf.jasperreports.engine.JasperExportManager;
 import net.sf.jasperreports.engine.JasperPrint;
 import org.joget.apps.app.service.AppService;
 import org.joget.apps.app.service.AppUtil;
+import org.joget.apps.datalist.model.DataList;
 import org.joget.apps.form.model.*;
 import org.joget.apps.form.service.FormService;
 import org.joget.apps.form.service.FormUtil;
@@ -64,8 +65,10 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
 
                 final boolean useVirtualizer = getPropertyUseVirtualizer(this);
                 final String jrxml = getPropertyJrxml(this, workflowAssignment);
+                final String dataListId = getPropertyDataListId(this, workflowAssignment);
+                final DataList dataList = getDataList(dataListId, workflowAssignment);
                 final ReportSettings setting = new ReportSettings("id", false, useVirtualizer, jrxml);
-                final JasperPrint jasperPrint = getJasperPrint(this, workflowAssignment, setting);
+                final JasperPrint jasperPrint = getJasperPrint(this, dataList, workflowAssignment, setting);
                 JasperExportManager.exportReportToPdfStream(jasperPrint, bos);
 
                 FormData storingFormData = submitForm(map, outputFile);

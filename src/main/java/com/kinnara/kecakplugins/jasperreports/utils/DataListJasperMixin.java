@@ -20,17 +20,13 @@ import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.DatalistDefinition;
 import org.joget.apps.app.model.FormDefinition;
 import org.joget.apps.app.service.AppUtil;
-import org.joget.apps.datalist.model.DataList;
-import org.joget.apps.datalist.model.DataListCollection;
-import org.joget.apps.datalist.model.DataListColumn;
-import org.joget.apps.datalist.model.DataListFilter;
+import org.joget.apps.datalist.model.*;
 import org.joget.apps.datalist.service.DataListService;
 import org.joget.apps.form.model.Element;
 import org.joget.apps.form.model.Form;
 import org.joget.apps.form.model.FormData;
 import org.joget.apps.form.service.FormService;
 import org.joget.apps.userview.model.UserviewMenu;
-import org.joget.commons.util.LogUtil;
 import org.joget.commons.util.SetupManager;
 import org.joget.plugin.property.model.PropertyEditable;
 import org.joget.workflow.model.WorkflowAssignment;
@@ -40,7 +36,6 @@ import org.json.JSONObject;
 import org.springframework.context.ApplicationContext;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
@@ -91,7 +86,7 @@ public interface DataListJasperMixin extends Declutter {
     }
 
     @Nonnull
-    default JasperPrint getJasperPrint(@Nonnull PropertyEditable prop, WorkflowAssignment workflowAssignment, ReportSettings settings) throws KecakJasperException {
+    default JasperPrint getJasperPrint(@Nonnull PropertyEditable prop, DataList dataList, WorkflowAssignment workflowAssignment, ReportSettings settings) throws KecakJasperException {
         String jrxml = settings.getJrxml();
 
         if (!JasperCompileManager.class.getClassLoader().equals(UserviewMenu.class.getClassLoader())) {
@@ -113,7 +108,7 @@ public interface DataListJasperMixin extends Declutter {
             }
 
             final String dataListId = getPropertyDataListId(prop, workflowAssignment);
-            final Map<String, List<String>> filters = getPropertyDataListFilter(prop, report, workflowAssignment);
+            final Map<String, List<String>> filters = getPropertyDataListFilter(prop, dataList, report, workflowAssignment);
             final JSONObject jsonResult = getDataListRow(dataListId, filters, settings.getSort(), settings.isDesc());
 
             try (final InputStream inputStream = new ByteArrayInputStream(jsonResult.toString().getBytes())) {
@@ -214,8 +209,30 @@ public interface DataListJasperMixin extends Declutter {
      * @param obj
      * @return
      */
-    default Map<String, List<String>> getPropertyDataListFilter(PropertyEditable obj, JasperReport jasperReport, WorkflowAssignment workflowAssignment) {
-        final Map<String, List<String>> filters = Optional.of("dataListFilter")
+    default Map<String, List<String>> getPropertyDataListFilter(PropertyEditable obj, DataList dataList, JasperReport jasperReport, WorkflowAssignment workflowAssignment) {
+        final Map<String, List<String>> filters = new HashMap<>();
+
+        // add filter from request parameter
+        final DataListFilter[] dataListFilters = dataList.getFilters();
+        Arrays.stream(dataListFilters)
+                .filter(f -> f.getType() instanceof DataListFilterTypeDefault)
+                .forEach(filter -> {
+                    final DataListFilterTypeDefault filterType = (DataListFilterTypeDefault) filter.getType();
+
+                    final String parameterName = filter.getName();
+                    final String parameterValue = filterType.getValue(dataList, parameterName, filterType.getPropertyString("defaultValue"));
+
+                    if(parameterValue != null) {
+                        if (filters.containsKey(parameterName)) {
+                            filters.get(parameterName).add(parameterValue);
+                        } else {
+                            filters.put(parameterName, Collections.singletonList(parameterValue));
+                        }
+                    }
+                });
+
+        // add filter from properties
+        Optional.of("dataListFilter")
                 .map(obj::getProperty)
                 .map(it -> (Object[]) it)
                 .map(Arrays::stream)
@@ -237,13 +254,15 @@ public interface DataListJasperMixin extends Declutter {
                 .map(Map::entrySet)
                 .flatMap(Set::stream)
                 .filter(Objects::nonNull)
-                .collect(
-                        Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> {
-                            List<String> result = new ArrayList<>(e1);
-                            result.addAll(e2);
-                            return result;
-                        })
-                );
+                .forEach(e -> {
+                    final String parameterName = e.getKey();
+                    final List<String> parameterValue = e.getValue();
+                    if (filters.containsKey(parameterName)) {
+                        filters.get(parameterName).addAll(parameterValue);
+                    } else {
+                        filters.put(parameterName, parameterValue);
+                    }
+                });
 
         // add filter from jasper parameter
         final Map<String, Object> jasperParameter = getPropertyJasperParameter(obj, workflowAssignment);
@@ -387,7 +406,7 @@ public interface DataListJasperMixin extends Declutter {
         final DataList dataList = getDataList(dataListId);
         getCollectFilters(dataList, filters);
 
-        if(!sort.isEmpty()) {
+        if (!sort.isEmpty()) {
             dataList.setDefaultSortColumn(sort);
 
             // order ASC / DESC

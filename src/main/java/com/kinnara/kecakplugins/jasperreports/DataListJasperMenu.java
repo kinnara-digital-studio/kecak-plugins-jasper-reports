@@ -203,17 +203,21 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
                 final AppDefinition appDef = AppUtil.getCurrentAppDefinition();
 
-                final UserviewMenu selectedMenu = Optional.of(json)
+                final DataListJasperMenu selectedMenu = (DataListJasperMenu) Optional.of(json)
                         .map(String::trim)
                         .filter(not(String::isEmpty))
                         .map(Try.onFunction(s -> findUserviewMenuFromPreview(s, menuId, contextPath, parameterMap, key)))
+                        .filter(m -> m instanceof DataListJasperMenu)
                         .orElse(Optional.ofNullable(findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap))
+                                .filter(m -> m instanceof DataListJasperMenu)
                                 .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Menu [" + menuId + "] is not available in userview [" + userviewId + "]")));
 
                 final boolean useVirtualizer = getPropertyUseVirtualizer(selectedMenu);
                 final String jrxml = getPropertyJrxml(selectedMenu, null);
+                final String dataListId = selectedMenu.getPropertyDataListId();
+                final DataList dataList = getDataList(dataListId);
                 final ReportSettings settings = new ReportSettings(sort, desc, useVirtualizer, jrxml);
-                generateReport(selectedMenu, type, request, response, settings);
+                generateReport(selectedMenu, type, request, response, dataList, settings);
 
                 return;
             }
@@ -296,9 +300,10 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
     /**
      * @return
      */
-    protected String generateHtmlBody(ReportSettings setting) throws IOException, KecakJasperException, JRException {
+    protected String generateHtmlBody(DataList dataList, ReportSettings setting) throws IOException, KecakJasperException, JRException {
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            final JasperPrint print = getJasperPrint(this, null, setting);
+            final JasperPrint print =
+                    getJasperPrint(this, dataList,null, setting);
             final HtmlExporter jrHtmlExporter = new HtmlExporter();
             final ExporterInput exporterInput = SimpleExporterInput.getInstance(Collections.singletonList(print));
             jrHtmlExporter.setExporterInput(exporterInput);
@@ -328,9 +333,9 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
         return pluginManager.getPluginFreeMarkerTemplate(model, getClass().getName(), pdfTemplate, null);
     }
 
-    protected void generateReport(@Nonnull UserviewMenu menu, String type, HttpServletRequest request, HttpServletResponse response, ReportSettings settings) throws JRException, BeansException, KecakJasperException {
+    protected void generateReport(@Nonnull UserviewMenu menu, String type, HttpServletRequest request, HttpServletResponse response, DataList dataList, ReportSettings settings) throws JRException, BeansException, KecakJasperException {
         final String fileName = getFileName(menu);
-        final JasperPrint print = getJasperPrint(menu, null, settings);
+        final JasperPrint print = getJasperPrint(menu, dataList, null, settings);
 
         try (final OutputStream output = response.getOutputStream()) {
             if ("pdf".equals(type)) {
@@ -494,7 +499,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
             // HTML
             else {
-                jasperContent = generateHtmlBody(setting);
+                jasperContent = generateHtmlBody(dataList, setting);
             }
 
             model.put("jasperContent", jasperContent);
@@ -518,6 +523,14 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
     protected boolean isSortDescending() {
         return "true".equalsIgnoreCase(getPropertyString("dataListSortDescending"));
+    }
+
+    protected String getPropertyDataListId() {
+        try {
+            return getRequiredProperty(this, "dataListId", null);
+        } catch (KecakJasperException e) {
+            return "";
+        }
     }
 }
 

@@ -256,9 +256,9 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
         try {
             report = JasperCompileManager.compileReport(input);
         } catch (JRRuntimeException e) {
-            LogUtil.info(getClassName(), e.getMessage());
+            LogUtil.error(getClassName(), e, e.getMessage());
             for(Object arg : e.getArgs()) {
-                LogUtil.info("", arg.toString());
+                LogUtil.info(getClassName(), arg.toString());
             }
         }
 
