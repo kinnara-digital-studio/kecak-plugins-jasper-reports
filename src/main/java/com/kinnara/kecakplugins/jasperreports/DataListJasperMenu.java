@@ -152,8 +152,8 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                         .filter(Objects::nonNull)
                         .collect(Collectors.toMap(Map.Entry::getKey, entry -> Arrays.asList(entry.getValue())));
 
-                final String sort = getPropertyString("dataListSortBy");
-                final boolean desc = "true".equalsIgnoreCase(getPropertyString("dataListSortDescending"));
+                final String sort = getSortBy();
+                final boolean desc = isSortDescending();
 
                 final JSONObject jsonResult = getDataListRow(dataListId, filters, sort, desc);
                 response.getWriter().write(jsonResult.toString());
@@ -442,8 +442,9 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                 header = header + customHeader;
             }
             this.setProperty("includeHeader", header);
-            String pdfUrl = contextPath + reportUrl + "&" + PARAM_TYPE + "=pdf";
-            String excelUrl = contextPath + reportUrl + "&" + PARAM_TYPE + "=xls";
+            String pdfUrl = contextPath + reportUrl + "&" + PARAM_TYPE + "=pdf&" + PARAM_SORT + "=" + getSortBy() + "&" + PARAM_DESC + "=" + isSortDescending();
+            String excelUrl = contextPath + reportUrl + "&" + PARAM_TYPE + "=xls&" + PARAM_SORT + "=" + getSortBy() + "&" + PARAM_DESC + "=" + isSortDescending();
+            ;
             String footer = "<div class=\"exportlinks\">";
             String exportProperty = this.getPropertyString("export");
             if (exportProperty != null && exportProperty.contains("pdf")) {
@@ -478,8 +479,8 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             }
             model.put("filterTemplates", filterTemplates);
 
-            final String sort = getPropertyString("dataListSortBy");
-            final boolean desc = "true".equalsIgnoreCase(getPropertyString("dataListSortDescending"));
+            final String sort = getSortBy();
+            final boolean desc = isSortDescending();
             final boolean useVirtualizer = getPropertyUseVirtualizer(this);
             final String jrxml = getPropertyJrxml(this, null);
             final ReportSettings setting = new ReportSettings(sort, desc, useVirtualizer, jrxml);
@@ -509,6 +510,14 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             final Map<String, Object> model = Collections.singletonMap("exception", e);
             return pluginManager.getPluginFreeMarkerTemplate(model, getClass().getName(), errorTemplate, null);
         }
+    }
+
+    protected String getSortBy() {
+        return getPropertyString("dataListSortBy");
+    }
+
+    protected boolean isSortDescending() {
+        return "true".equalsIgnoreCase(getPropertyString("dataListSortDescending"));
     }
 }
 
