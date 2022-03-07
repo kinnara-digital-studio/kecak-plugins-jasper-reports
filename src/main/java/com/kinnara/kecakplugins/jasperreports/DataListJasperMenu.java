@@ -18,6 +18,7 @@ import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.UserviewDefinition;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.datalist.model.DataList;
+import org.joget.apps.datalist.model.DataListBinder;
 import org.joget.apps.form.service.FormUtil;
 import org.joget.apps.userview.model.Userview;
 import org.joget.apps.userview.model.UserviewCategory;
@@ -165,7 +166,12 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             else if ("fieldsOptions".equals(action)) {
                 final String dataListId = getRequiredParameter(request, "dataListId");
                 final DataList dataList = getDataList(dataListId);
-                final JSONArray jsonResponse = Arrays.stream(dataList.getColumns())
+                final JSONArray jsonResponse = Optional.of(dataList)
+                        .map(DataList::getBinder)
+                        .map(DataListBinder::getColumns)
+                        .map(Arrays::stream)
+                        .orElseGet(Stream::empty)
+                        .filter(Objects::nonNull)
                         .map(Try.onFunction(c -> {
                             final JSONObject json = new JSONObject();
                             json.put(FormUtil.PROPERTY_VALUE, c.getName());
@@ -303,7 +309,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
     protected String generateHtmlBody(DataList dataList, ReportSettings setting) throws IOException, KecakJasperException, JRException {
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             final JasperPrint print =
-                    getJasperPrint(this, dataList,null, setting);
+                    getJasperPrint(this, dataList, null, setting);
             final HtmlExporter jrHtmlExporter = new HtmlExporter();
             final ExporterInput exporterInput = SimpleExporterInput.getInstance(Collections.singletonList(print));
             jrHtmlExporter.setExporterInput(exporterInput);
