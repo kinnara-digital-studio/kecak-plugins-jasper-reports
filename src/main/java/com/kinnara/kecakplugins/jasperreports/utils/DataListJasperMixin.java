@@ -27,6 +27,7 @@ import org.joget.apps.form.model.Form;
 import org.joget.apps.form.model.FormData;
 import org.joget.apps.form.service.FormService;
 import org.joget.apps.userview.model.UserviewMenu;
+import org.joget.commons.util.LogUtil;
 import org.joget.commons.util.SetupManager;
 import org.joget.plugin.property.model.PropertyEditable;
 import org.joget.workflow.model.WorkflowAssignment;
@@ -412,6 +413,10 @@ public interface DataListJasperMixin extends Declutter {
             // order ASC / DESC
             dataList.setDefaultOrder(desc ? DataList.ORDER_DESCENDING_VALUE : DataList.ORDER_ASCENDING_VALUE);
         }
+
+        // mock total and size to improve performance
+        dataList.setSize(Integer.MAX_VALUE);
+        dataList.setTotal(Integer.MAX_VALUE);
 
         final DataListCollection<Map<String, Object>> rows = dataList.getRows(Integer.MAX_VALUE, 0);
 
