@@ -32,8 +32,6 @@ import org.joget.plugin.property.model.PropertyEditable;
 import org.joget.workflow.util.WorkflowUtil;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.kecak.apps.userview.model.AceUserviewMenu;
-import org.kecak.apps.userview.model.BootstrapUserviewTheme;
 import org.springframework.beans.BeansException;
 
 import javax.annotation.Nonnull;
@@ -54,7 +52,7 @@ import java.util.stream.Stream;
  * <p>
  * Requires changes in core version 7635059fff56091b95948e4b314f989a06fbb51e
  */
-public class DataListJasperMenu extends UserviewMenu implements DataListJasperMixin, PluginWebSupport, AceUserviewMenu {
+public class DataListJasperMenu extends UserviewMenu implements DataListJasperMixin, PluginWebSupport {
 
 
     public String getName() {
@@ -63,7 +61,10 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
     @Override
     public String getVersion() {
-        return getClass().getPackage().getImplementationVersion();
+        PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
+        ResourceBundle resourceBundle = pluginManager.getPluginMessageBundle(getClassName(), "/messages/BuildNumber");
+        String buildNumber = resourceBundle.getString("buildNumber");
+        return buildNumber;
     }
 
     @Override
@@ -119,7 +120,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
     @Override
     public String getPropertyOptions() {
         Object[] arguments = new Object[]{getClassName(), getClassName()};
-        String json = AppUtil.readPluginResource(getClassName(), "/properties/dataListJasperReports.json", arguments, true, "message/jasperReports");
+        String json = AppUtil.readPluginResource(getClassName(), "/properties/dataListJasperReports.json", arguments, true, "messages/jasperReports");
         return json;
     }
 
@@ -275,7 +276,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                 .map(s -> userviewDefinitionDao.loadById(s, appDef))
                 .map(UserviewDefinition::getJson)
                 .map(json -> userviewService.createUserview(json, menuId, false, contextPath, parameterMap, key, true))
-                .map(tryFunction(u -> findUserviewMenuInUserview(u, menuId)))
+                .map(Try.onFunction(u -> findUserviewMenuInUserview(u, menuId)))
                 .orElseThrow(() -> new KecakJasperException("Error generating userview [" + userviewId + "]"));
     }
 
@@ -411,21 +412,6 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
      */
     private String getFileName(PropertyEditable menu) {
         return ifEmpty(ifEmpty(getPropertyFileName(menu), getPropertyCustomId(menu)), getPropertyId(menu));
-    }
-
-    @Override
-    public String getAceJspPage(BootstrapUserviewTheme bootstrapUserviewTheme) {
-        return getJspPage();
-    }
-
-    @Override
-    public String getAceRenderPage() {
-        return getRenderPage("/templates/DataListJasperMenu.ftl", "/templates/DataListJasperMenuPdf.ftl", "/templates/jasperError.ftl");
-    }
-
-    @Override
-    public String getAceDecoratedMenu() {
-        return getDecoratedMenu();
     }
 
     protected String getRenderPage(String template, String pdfTemplate, String errorTemplate) {

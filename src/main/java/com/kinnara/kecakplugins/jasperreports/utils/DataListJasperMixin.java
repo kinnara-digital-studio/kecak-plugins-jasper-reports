@@ -4,6 +4,7 @@ import com.kinnara.kecakplugins.jasperreports.exception.ApiException;
 import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
 import com.kinnara.kecakplugins.jasperreports.model.ReportSettings;
 import com.kinnarastudio.commons.Declutter;
+import com.kinnarastudio.commons.Try;
 import com.kinnarastudio.commons.jsonstream.JSONCollectors;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JsonDataSource;
@@ -525,7 +526,7 @@ public interface DataListJasperMixin extends Declutter {
                 .filter(c -> field.equals(c.getName()))
                 .findFirst()
                 .map(column -> Optional.of(column)
-                        .map(tryFunction(DataListColumn::getFormats))
+                        .map(Try.onFunction(DataListColumn::getFormats))
                         .map(Collection::stream)
                         .orElseGet(Stream::empty)
                         .filter(Objects::nonNull)

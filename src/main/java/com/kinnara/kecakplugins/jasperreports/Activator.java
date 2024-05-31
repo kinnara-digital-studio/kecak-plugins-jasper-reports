@@ -14,9 +14,6 @@ public class Activator implements BundleActivator {
         registrationList = new ArrayList<ServiceRegistration>();
 
         //Register plugin here
-        registrationList.add(context.registerService(JasperReportsMenu.class.getName(), new JasperReportsMenu(), null));
-        registrationList.add(context.registerService(JasperReportsJdbcOptions.class.getName(), new JasperReportsJdbcOptions(), null));
-        registrationList.add(context.registerService(JdbcTestConnectionApi.class.getName(), new JdbcTestConnectionApi(), null));
         registrationList.add(context.registerService(DataListJasperMenu.class.getName(), new DataListJasperMenu(), null));
         registrationList.add(context.registerService(DataListJasperTool.class.getName(), new DataListJasperTool(), null));
         registrationList.add(context.registerService(JasperViewerElement.class.getName(), new JasperViewerElement(), null));
