@@ -186,6 +186,13 @@
                 "mode" : "xml"
             },
             {
+                "name": "fileJrxml",
+                "label": "",
+                "type": "file",
+                "allowType": ".jrxml",
+                "maxSize": "4096"
+            },
+            {
                 "name" : "use_virtualizer",
                 "label" : "@@userview.jasperReports.use_virtualizer@@",
                 "type" : "checkbox",

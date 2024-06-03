@@ -1,6 +1,5 @@
 package com.kinnara.kecakplugins.jasperreports;
 
-import com.kinnara.kecakplugins.jasperreports.exception.ApiException;
 import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
 import com.kinnara.kecakplugins.jasperreports.model.ReportSettings;
 import com.kinnara.kecakplugins.jasperreports.utils.DataListJasperMixin;
@@ -25,11 +24,13 @@ import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.util.WorkflowUtil;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.kecak.apps.exception.ApiException;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -63,7 +64,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
 
         try {
             File outputFile = getTempOutputFile(map);
-            try (OutputStream fos = new FileOutputStream(outputFile);
+            try (OutputStream fos = Files.newOutputStream(outputFile.toPath());
                  OutputStream bos = new BufferedOutputStream(fos)) {
 
                 final boolean useVirtualizer = getPropertyUseVirtualizer(this);
@@ -174,7 +175,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
         return generateForm(getRequiredProperty(this, "formDefId", null), formCache);
     }
 
-    private Element getField(Form form, Map properties) throws KecakJasperException {
+    protected Element getField(Form form, Map properties) throws KecakJasperException {
         WorkflowAssignment workflowAssignment = (WorkflowAssignment) properties.get("workflowAssignment");
 
         FormData formData = new FormData();
@@ -185,7 +186,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
                 .orElseThrow(() -> new KecakJasperException("Field [" + properties.get("field") + "] is not found in form [" + form.getPropertyString(FormUtil.PROPERTY_ID) + "]"));
     }
 
-    private File getTempOutputFile(Map properties) throws KecakJasperException {
+    protected File getTempOutputFile(Map properties) throws KecakJasperException {
         WorkflowAssignment workflowAssignment = (WorkflowAssignment) properties.get("workflowAssignment");
         String id = UuidGenerator.getInstance().getUuid();
         String path = id + File.separator;
@@ -201,7 +202,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
         throw new KecakJasperException("Cannot write file [" + file.getAbsolutePath() + "]");
     }
 
-    private String getPropertyFileName(WorkflowAssignment workflowAssignment) throws KecakJasperException {
+    protected String getPropertyFileName(WorkflowAssignment workflowAssignment) throws KecakJasperException {
         return getRequiredProperty(this, "fileName", workflowAssignment).replaceAll(File.separator, "_");
     }
 

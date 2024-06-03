@@ -1,6 +1,5 @@
 package com.kinnara.kecakplugins.jasperreports;
 
-import com.kinnara.kecakplugins.jasperreports.exception.ApiException;
 import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
 import com.kinnara.kecakplugins.jasperreports.model.ReportSettings;
 import com.kinnara.kecakplugins.jasperreports.utils.DataListJasperMixin;
@@ -32,6 +31,7 @@ import org.joget.plugin.property.model.PropertyEditable;
 import org.joget.workflow.util.WorkflowUtil;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.kecak.apps.exception.ApiException;
 import org.springframework.beans.BeansException;
 
 import javax.annotation.Nonnull;
@@ -138,109 +138,110 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
         try {
             final String action = getRequiredParameter(request, PARAM_ACTION);
-            if ("rows".equals(action)) {
-                boolean isAdmin = WorkflowUtil.isCurrentUserInRole(WorkflowUtil.ROLE_ADMIN);
-                if (!isAdmin) {
-                    throw new ApiException(HttpServletResponse.SC_UNAUTHORIZED, "User [" + WorkflowUtil.getCurrentUsername() + "] is not admin");
-                }
+            switch (action) {
+                case "rows": {
+                    boolean isAdmin = WorkflowUtil.isCurrentUserInRole(WorkflowUtil.ROLE_ADMIN);
+                    if (!isAdmin) {
+                        throw new ApiException(HttpServletResponse.SC_UNAUTHORIZED, "User [" + WorkflowUtil.getCurrentUsername() + "] is not admin");
+                    }
 
-                final String dataListId = getRequiredParameter(request, PARAM_DATALIST_ID);
+                    final String dataListId = getRequiredParameter(request, PARAM_DATALIST_ID);
 
-                final Map<String, List<String>> filters = Optional.of(request.getParameterMap())
-                        .map(m -> (Map<String, String[]>) m)
-                        .map(Map::entrySet)
-                        .map(Collection::stream)
-                        .orElseGet(Stream::empty)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toMap(Map.Entry::getKey, entry -> Arrays.asList(entry.getValue())));
+                    final Map<String, List<String>> filters = Optional.of(request.getParameterMap())
+                            .map(m -> (Map<String, String[]>) m)
+                            .map(Map::entrySet)
+                            .map(Collection::stream)
+                            .orElseGet(Stream::empty)
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toMap(Map.Entry::getKey, entry -> Arrays.asList(entry.getValue())));
 
-                final String sort = getSortBy();
-                final boolean desc = isSortDescending();
+                    final String sort = getSortBy();
+                    final boolean desc = isSortDescending();
 
-                final JSONObject jsonResult = getDataListRow(dataListId, filters, sort, desc);
-                response.getWriter().write(jsonResult.toString());
+                    final JSONObject jsonResult = getDataListRow(dataListId, filters, sort, desc);
+                    response.getWriter().write(jsonResult.toString());
 
-                return;
-            }
-
-            // get datalist fields
-            else if ("fieldsOptions".equals(action)) {
-                final String dataListId = getRequiredParameter(request, "dataListId");
-                final DataList dataList = getDataList(dataListId);
-                final JSONArray jsonResponse = Optional.of(dataList)
-                        .map(DataList::getBinder)
-                        .map(DataListBinder::getColumns)
-                        .map(Arrays::stream)
-                        .orElseGet(Stream::empty)
-                        .filter(Objects::nonNull)
-                        .map(Try.onFunction(c -> {
-                            final JSONObject json = new JSONObject();
-                            json.put(FormUtil.PROPERTY_VALUE, c.getName());
-                            json.put(FormUtil.PROPERTY_LABEL, c.getLabel());
-                            return json;
-                        }))
-                        .collect(JSONCollectors.toJSONArray());
-
-                response.getWriter().write(jsonResponse.toString());
-                return;
-            }
-
-            // get json url
-            else if ("getJsonUrl".equals(action)) {
-                final String dataListId = getRequiredParameter(request, "dataListId");
-
-                final JSONObject jsonObject = new JSONObject();
-                jsonObject.put("message", request.getRequestURL() + "?" + PARAM_ACTION + "=rows&" + PARAM_DATALIST_ID + "=" + dataListId);
-
-                response.getWriter().write(jsonObject.toString());
-                return;
-            }
-
-            // report
-            else if ("report".equals(action)) {
-                final String userviewId = getRequiredParameter(request, PARAM_USERVIEW_ID);
-                final String key = getRequiredParameter(request, PARAM_KEY);
-                final String menuId = getRequiredParameter(request, PARAM_MENU_ID);
-                final String type = getRequiredParameter(request, PARAM_TYPE);
-                final String json = getOptionalParameter(request, PARAM_JSON, "");
-                final String contextPath = request.getContextPath();
-                final Map parameterMap = request.getParameterMap();
-                final String sort = getOptionalParameter(request, PARAM_SORT, "");
-                final boolean desc = "true".equalsIgnoreCase(getOptionalParameter(request, PARAM_DESC, ""));
-
-                final AppDefinition appDef = AppUtil.getCurrentAppDefinition();
-
-                final DataListJasperMenu selectedMenu = (DataListJasperMenu) Optional.of(json)
-                        .map(String::trim)
-                        .filter(not(String::isEmpty))
-                        .map(Try.onFunction(s -> findUserviewMenuFromPreview(s, menuId, contextPath, parameterMap, key)))
-                        .filter(m -> m instanceof DataListJasperMenu)
-                        .orElse(Optional.ofNullable(findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap))
-                                .filter(m -> m instanceof DataListJasperMenu)
-                                .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Menu [" + menuId + "] is not available in userview [" + userviewId + "]")));
-
-                final boolean useVirtualizer = getPropertyUseVirtualizer(selectedMenu);
-                final String jrxml = getPropertyJrxml(selectedMenu, null);
-                final String dataListId = selectedMenu.getPropertyDataListId();
-                final DataList dataList = getDataList(dataListId);
-                final ReportSettings settings = new ReportSettings(sort, desc, useVirtualizer, jrxml);
-                generateReport(selectedMenu, type, request, response, dataList, settings);
-
-                return;
-            }
-
-            // load image
-            else if ("image".equals(action)) {
-                final String imageName = getRequiredParameter(request, PARAM_IMAGE).trim();
-                if (!imageName.isEmpty()) {
-                    generateImage(request, response, imageName);
                     return;
                 }
-            }
 
-            // unknown action
-            else {
-                throw new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Invalid action [" + action + "]");
+                // get datalist fields
+                case "fieldsOptions": {
+                    final String dataListId = getRequiredParameter(request, "dataListId");
+                    final DataList dataList = getDataList(dataListId);
+                    final JSONArray jsonResponse = Optional.of(dataList)
+                            .map(DataList::getBinder)
+                            .map(DataListBinder::getColumns)
+                            .map(Arrays::stream)
+                            .orElseGet(Stream::empty)
+                            .filter(Objects::nonNull)
+                            .map(Try.onFunction(c -> {
+                                final JSONObject json = new JSONObject();
+                                json.put(FormUtil.PROPERTY_VALUE, c.getName());
+                                json.put(FormUtil.PROPERTY_LABEL, c.getLabel());
+                                return json;
+                            }))
+                            .collect(JSONCollectors.toJSONArray());
+
+                    response.getWriter().write(jsonResponse.toString());
+                    return;
+                }
+
+                // get json url
+                case "getJsonUrl": {
+                    final String dataListId = getRequiredParameter(request, "dataListId");
+
+                    final JSONObject jsonObject = new JSONObject();
+                    jsonObject.put("message", request.getRequestURL() + "?" + PARAM_ACTION + "=rows&" + PARAM_DATALIST_ID + "=" + dataListId);
+
+                    response.getWriter().write(jsonObject.toString());
+                    return;
+                }
+
+                // report
+                case "report": {
+                    final String userviewId = getRequiredParameter(request, PARAM_USERVIEW_ID);
+                    final String key = getRequiredParameter(request, PARAM_KEY);
+                    final String menuId = getRequiredParameter(request, PARAM_MENU_ID);
+                    final String type = getRequiredParameter(request, PARAM_TYPE);
+                    final String json = getOptionalParameter(request, PARAM_JSON, "");
+                    final String contextPath = request.getContextPath();
+                    final Map parameterMap = request.getParameterMap();
+                    final String sort = getOptionalParameter(request, PARAM_SORT, "");
+                    final boolean desc = "true".equalsIgnoreCase(getOptionalParameter(request, PARAM_DESC, ""));
+
+                    final AppDefinition appDef = AppUtil.getCurrentAppDefinition();
+
+                    final DataListJasperMenu selectedMenu = (DataListJasperMenu) Optional.of(json)
+                            .map(String::trim)
+                            .filter(not(String::isEmpty))
+                            .map(Try.onFunction(s -> findUserviewMenuFromPreview(s, menuId, contextPath, parameterMap, key)))
+                            .filter(m -> m instanceof DataListJasperMenu)
+                            .orElse(Optional.ofNullable(findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap))
+                                    .filter(m -> m instanceof DataListJasperMenu)
+                                    .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Menu [" + menuId + "] is not available in userview [" + userviewId + "]")));
+
+                    final boolean useVirtualizer = getPropertyUseVirtualizer(selectedMenu);
+                    final String jrxml = getPropertyJrxml(selectedMenu, null);
+                    final String dataListId = selectedMenu.getPropertyDataListId();
+                    final DataList dataList = getDataList(dataListId);
+                    final ReportSettings settings = new ReportSettings(sort, desc, useVirtualizer, jrxml);
+                    generateReport(selectedMenu, type, request, response, dataList, settings);
+
+                    return;
+                }
+
+                // load image
+                case "image":
+                    final String imageName = getRequiredParameter(request, PARAM_IMAGE).trim();
+                    if (!imageName.isEmpty()) {
+                        generateImage(request, response, imageName);
+                        return;
+                    }
+                    break;
+
+                // unknown action
+                default:
+                    throw new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Invalid action [" + action + "]");
             }
 
             response.setStatus(HttpServletResponse.SC_NO_CONTENT);
@@ -410,7 +411,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
      * @param menu
      * @return
      */
-    private String getFileName(PropertyEditable menu) {
+    protected String getFileName(PropertyEditable menu) {
         return ifEmpty(ifEmpty(getPropertyFileName(menu), getPropertyCustomId(menu)), getPropertyId(menu));
     }
 

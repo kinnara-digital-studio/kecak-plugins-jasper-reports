@@ -1,6 +1,5 @@
 package com.kinnara.kecakplugins.jasperreports.utils;
 
-import com.kinnara.kecakplugins.jasperreports.exception.ApiException;
 import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
 import com.kinnara.kecakplugins.jasperreports.model.ReportSettings;
 import com.kinnarastudio.commons.Declutter;
@@ -35,6 +34,7 @@ import org.joget.workflow.model.WorkflowAssignment;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.kecak.apps.exception.ApiException;
 import org.springframework.context.ApplicationContext;
 
 import javax.annotation.Nonnull;
