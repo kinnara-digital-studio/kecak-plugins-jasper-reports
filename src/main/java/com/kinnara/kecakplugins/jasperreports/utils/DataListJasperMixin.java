@@ -223,7 +223,7 @@ public interface DataListJasperMixin extends Declutter {
                     final String parameterName = filter.getName();
                     final String parameterValue = filterType.getValue(dataList, parameterName, filterType.getPropertyString("defaultValue"));
 
-                    if(parameterValue != null) {
+                    if (parameterValue != null) {
                         if (filters.containsKey(parameterName)) {
                             filters.get(parameterName).add(parameterValue);
                         } else {
@@ -282,11 +282,21 @@ public interface DataListJasperMixin extends Declutter {
                         .anyMatch("net.sf.jasperreports.http.data.url.parameter"::equals))
                 .forEach(jrParameter -> {
                     String parameterName = jrParameter.getName();
-                    String parameterValue = String.valueOf(jasperParameter.get(parameterName));
+                    String parameterValue = Optional.of(parameterName)
+                            .map(jasperParameter::get)
+                            .map(String::valueOf)
+                            .orElse("");
+
+                    if(parameterValue.isEmpty()) {
+                        return;
+                    }
+
                     if (filters.containsKey(parameterName)) {
                         filters.get(parameterName).add(parameterValue);
                     } else {
-                        filters.put(parameterName, Collections.singletonList(parameterValue));
+                        filters.put(parameterName, new ArrayList<String>() {{
+                            add(parameterValue);
+                        }});
                     }
                 });
 
@@ -414,11 +424,7 @@ public interface DataListJasperMixin extends Declutter {
             dataList.setDefaultOrder(desc ? DataList.ORDER_DESCENDING_VALUE : DataList.ORDER_ASCENDING_VALUE);
         }
 
-        // mock total and size to improve performance
-        dataList.setSize(Integer.MAX_VALUE);
-        dataList.setTotal(Integer.MAX_VALUE);
-
-        final DataListCollection<Map<String, Object>> rows = dataList.getRows(Integer.MAX_VALUE, 0);
+        final DataListCollection<Map<String, Object>> rows = dataList.getRows(DataList.MAXIMUM_PAGE_SIZE, 0);
 
         final JSONArray jsonArrayData = Optional.ofNullable(rows)
                 .map(Collection::stream)
