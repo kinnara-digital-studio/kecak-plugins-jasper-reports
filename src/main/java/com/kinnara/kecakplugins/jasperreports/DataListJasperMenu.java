@@ -53,10 +53,10 @@ import java.util.stream.Stream;
  * Requires changes in core version 7635059fff56091b95948e4b314f989a06fbb51e
  */
 public class DataListJasperMenu extends UserviewMenu implements DataListJasperMixin, PluginWebSupport {
-
+    public final static String LABEL = "DataList Jasper";
 
     public String getName() {
-        return getLabel() + getVersion();
+        return LABEL;
     }
 
     @Override
@@ -109,7 +109,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
     @Override
     public String getLabel() {
-        return "DataList Jasper";
+        return LABEL;
     }
 
     @Override

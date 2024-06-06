@@ -9,8 +9,8 @@ import net.sf.jasperreports.engine.JasperPrint;
 import org.joget.apps.app.service.AppService;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.datalist.model.DataList;
+import org.joget.apps.form.lib.FileUpload;
 import org.joget.apps.form.model.*;
-import org.joget.apps.form.service.FormService;
 import org.joget.apps.form.service.FormUtil;
 import org.joget.commons.util.FileManager;
 import org.joget.commons.util.LogUtil;
@@ -19,6 +19,7 @@ import org.joget.plugin.base.DefaultApplicationPlugin;
 import org.joget.plugin.base.PluginManager;
 import org.joget.plugin.base.PluginWebSupport;
 import org.joget.workflow.model.WorkflowAssignment;
+import org.joget.workflow.model.WorkflowProcess;
 import org.joget.workflow.model.WorkflowProcessLink;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.util.WorkflowUtil;
@@ -38,11 +39,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class DataListJasperTool extends DefaultApplicationPlugin implements DataListJasperMixin, PluginWebSupport {
+    final public static String LABEL = "DataList Jasper Tool";
+
     final Map<String, Form> formCache = new HashMap<>();
 
     @Override
     public String getName() {
-        return getLabel() + getVersion();
+        return LABEL;
     }
 
     @Override
@@ -73,9 +76,11 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
                 final DataList dataList = getDataList(dataListId, workflowAssignment);
                 final ReportSettings setting = new ReportSettings("id", false, useVirtualizer, jrxml);
                 final JasperPrint jasperPrint = getJasperPrint(this, dataList, workflowAssignment, setting);
-                JasperExportManager.exportReportToPdfStream(jasperPrint, bos);
 
-                FormData storingFormData = submitForm(map, outputFile);
+                JasperExportManager.exportReportToPdfStream(jasperPrint, bos);
+                LogUtil.info(getClassName(), "Storing temporary file [" + outputFile.getPath() + "] size [" + outputFile.length() + "] bytes");
+
+                final FormData storingFormData = submitForm(map, outputFile);
 
                 // show error
                 Optional.of(storingFormData)
@@ -85,7 +90,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
                         .orElseGet(Stream::empty)
                         .forEach(e -> LogUtil.warn(getClass().getName(), "Error field [" + e.getKey() + "] message [" + e.getValue() + "]"));
 
-                if(Optional.of(storingFormData).map(FormData::getFormErrors).map(m -> !m.isEmpty()).orElse(false)) {
+                if (Optional.of(storingFormData).map(FormData::getFormErrors).map(m -> !m.isEmpty()).orElse(false)) {
                     throw new KecakJasperException("Validation error when storing form data [" + storingFormData.getPrimaryKeyValue() + "]");
                 }
 
@@ -101,7 +106,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
 
     @Override
     public String getLabel() {
-        return "DataList Jasper Tool";
+        return LABEL;
     }
 
     @Override
@@ -112,7 +117,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
     @Override
     public String getPropertyOptions() {
         Object[] arguments = new Object[]{getClassName()};
-        String json = AppUtil.readPluginResource(getClassName(), "/properties/dataListJasperTool.json", arguments, true, "message/jasperReports");
+        String json = AppUtil.readPluginResource(getClassName(), "/properties/dataListJasperTool.json", arguments, true, "messages/jasperReports");
         return json;
     }
 
@@ -141,6 +146,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
                 try {
                     JSONObject jsonResult = getDataListRow(dataListId, filters, null, false);
                     response.getWriter().write(jsonResult.toString());
+                    return;
                 } catch (KecakJasperException e) {
                     throw new ApiException(HttpServletResponse.SC_BAD_REQUEST, e);
                 }
@@ -153,6 +159,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
                     JSONObject jsonObject = new JSONObject();
                     jsonObject.put("message", request.getRequestURL() + "?action=rows&dataListId=" + dataListId);
                     response.getWriter().write(jsonObject.toString());
+                    return;
                 } catch (JSONException e) {
                     throw new ApiException(HttpServletResponse.SC_BAD_REQUEST, e);
                 }
@@ -162,8 +169,6 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
             else {
                 throw new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Invalid action [" + action + "]");
             }
-
-            response.setStatus(HttpServletResponse.SC_NO_CONTENT);
         } catch (ApiException ex) {
             LogUtil.error(getClass().getName(), ex, ex.getMessage());
             response.sendError(ex.getErrorCode(), ex.getMessage());
@@ -180,9 +185,11 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
 
         FormData formData = new FormData();
 
-        String fieldId = getRequiredProperty(this,  "field", workflowAssignment);
+        String fieldId = getRequiredProperty(this, "field", workflowAssignment);
         return Optional.of(fieldId)
                 .map(s -> FormUtil.findElement(s, form, formData))
+                .filter(e -> e instanceof FileUpload)
+                .map(peekMap(e -> LogUtil.info(getClassName(), "Element [" + e.getPropertyString("id") + "] className [" + e.getClassName() + "]")))
                 .orElseThrow(() -> new KecakJasperException("Field [" + properties.get("field") + "] is not found in form [" + form.getPropertyString(FormUtil.PROPERTY_ID) + "]"));
     }
 
@@ -206,61 +213,48 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
         return getRequiredProperty(this, "fileName", workflowAssignment).replaceAll(File.separator, "_");
     }
 
-    private FormData submitForm(Map properties, File outputFile) throws KecakJasperException {
+    protected FormData submitForm(Map properties, File outputFile) throws KecakJasperException {
         PluginManager pluginManager = (PluginManager) properties.get("pluginManager");
         AppService appService = (AppService) pluginManager.getBean("appService");
-        FormService formService = (FormService) pluginManager.getBean("formService");
         WorkflowManager workflowManager = (WorkflowManager) pluginManager.getBean("workflowManager");
         WorkflowAssignment workflowAssignment = (WorkflowAssignment) properties.get("workflowAssignment");
 
-        FormData formData = new FormData();
-        if (workflowAssignment != null) {
-            formData.setProcessId(workflowAssignment.getProcessId());
-            formData.setActivityId(workflowAssignment.getActivityId());
-        }
+        FormData formData = new FormData() {{
+            if (workflowAssignment != null) {
+                setProcessId(workflowAssignment.getProcessId());
+                setActivityId(workflowAssignment.getActivityId());
+            }
 
-        String primaryKey = Optional.of(formData)
-                .map(FormData::getProcessId)
-                .map(workflowManager::getWorkflowProcessLink)
-                .map(WorkflowProcessLink::getOriginProcessId)
-                .orElseGet(() -> Optional.of(formData)
-                        .map(FormData::getProcessId)
-                        .orElseGet(() -> UuidGenerator.getInstance().getUuid()));
+            final String primaryKey = Optional.of("primaryKey")
+                    .map(properties::get)
+                    .map(String::valueOf)
+                    .filter(s -> !s.isEmpty())
+                    .orElseGet(() -> {
+                        final String processId = getProcessId();
 
-        formData.setPrimaryKeyValue(primaryKey);
+                        // get from record ID
+                        return Optional.ofNullable(processId)
+                                .map(workflowManager::getProcess)
+                                .map(WorkflowProcess::getRecordId)
+                                .orElseGet(() -> Optional.ofNullable(processId)
+                                        .orElseGet(UuidGenerator.getInstance()::getUuid));
+                    });
+
+            setPrimaryKeyValue(primaryKey);
+        }};
+
         Form form = getForm();
-
-        Element fileElement = getField(form, properties);
-        String fileElementParameterName = FormUtil.getElementParameterName(fileElement);
 
         Pattern pattern = Pattern.compile("(?<=app_tempfile/).+");
         Matcher matcher = pattern.matcher(outputFile.getPath());
-        String filename = Optional.of(matcher).filter(Matcher::find).map(Matcher::group).orElse("");
-
-        formData.addRequestParameterValues(fileElementParameterName, new String[]{filename});
-
-        formService.executeFormLoadBinders(form, formData);
-
-        FormRowSet rowSet = formData.getLoadBinderData(form);
-        Optional.ofNullable(rowSet)
-                .map(Collection::stream)
-                .orElseGet(Stream::empty)
-                .findFirst()
-                .map(FormRow::getCustomProperties)
-                .map(m -> (Map<String, String>) m)
-                .map(Map::entrySet)
-                .map(Collection::stream)
-                .orElseGet(Stream::empty)
-
-                .forEach(e -> {
-                    Element element = FormUtil.findElement(String.valueOf(e.getKey()), form, formData);
-                    if (element != null) {
-                        String elementParameterName = FormUtil.getElementParameterName(element);
-                        formData.addRequestParameterValues(elementParameterName, new String[]{String.valueOf(e.getValue())});
-                    }
-                });
+        if (matcher.find()) {
+            final Element fileElement = getField(form, properties);
+            final String relativeTempFilePath = matcher.group();
+            String fileElementParameterName = FormUtil.getElementParameterName(fileElement);
+            formData.addRequestParameterValues(fileElementParameterName, new String[]{relativeTempFilePath});
+        }
 
         // submit form
-        return appService.submitForm(form, formData, false);
+        return appService.submitForm(form, formData, true);
     }
 }
