@@ -1,13 +1,15 @@
 package com.kinnara.kecakplugins.jasperreports.model;
 
+import javax.annotation.Nullable;
+
 public class ReportSettings {
     private final String sort;
     private final boolean desc;
     private final boolean useVirtualizer;
     private final String jrxml;
 
-    public ReportSettings(String sort, boolean desc, boolean useVirtualizer, String jrxml) {
-        this.sort = sort == null ? "" : sort;
+    public ReportSettings(@Nullable String sort, boolean desc, boolean useVirtualizer, String jrxml) {
+        this.sort = sort == null || sort.isEmpty() ? "id" : sort;
         this.desc = desc;
         this.useVirtualizer = useVirtualizer;
         this.jrxml = jrxml;

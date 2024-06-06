@@ -94,6 +94,11 @@
                 "options_ajax": "[CONTEXT_PATH]/web/json/console/app[APP_PATH]/forms/options"
             },
             {
+                "name": "primaryKey",
+                "label": "@@userview.jasperReports.primaryKey@@",
+                "type": "textfield"
+            },
+            {
                 "name": "field",
                 "label": "@@userview.jasperReports.field@@",
                 "description": "@@userview.jasperReports.field.desc@@",

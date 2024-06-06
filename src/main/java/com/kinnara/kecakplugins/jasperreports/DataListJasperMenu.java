@@ -410,7 +410,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
      * Get menu ID
      *
      * @param menu
-     * @return
+     * @return filename without extension
      */
     private String getFileName(PropertyEditable menu) {
         return ifEmpty(ifEmpty(getPropertyFileName(menu), getPropertyCustomId(menu)), getPropertyId(menu));

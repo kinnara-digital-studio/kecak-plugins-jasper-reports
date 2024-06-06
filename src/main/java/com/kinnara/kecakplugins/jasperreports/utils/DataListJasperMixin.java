@@ -411,7 +411,6 @@ public interface DataListJasperMixin extends Declutter {
      * @param dataListId
      * @return
      */
-
     @Nonnull
     default JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters, @Nonnull String sort, boolean desc) throws KecakJasperException {
         final DataList dataList = getDataList(dataListId);
