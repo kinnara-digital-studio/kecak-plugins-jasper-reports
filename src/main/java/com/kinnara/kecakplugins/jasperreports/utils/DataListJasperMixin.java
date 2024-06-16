@@ -88,7 +88,8 @@ public interface DataListJasperMixin extends Declutter {
     }
 
     @Nonnull
-    default JasperPrint getJasperPrint(@Nonnull PropertyEditable prop, DataList dataList, WorkflowAssignment workflowAssignment, ReportSettings settings) throws KecakJasperException {
+    default JasperPrint getJasperPrint(@Nonnull PropertyEditable prop, DataList dataList,
+            WorkflowAssignment workflowAssignment, ReportSettings settings) throws KecakJasperException {
         String jrxml = settings.getJrxml();
 
         if (!JasperCompileManager.class.getClassLoader().equals(UserviewMenu.class.getClassLoader())) {
@@ -105,24 +106,38 @@ public interface DataListJasperMixin extends Declutter {
                 if (!filepath.exists()) {
                     filepath.mkdirs();
                 }
-                final JRSwapFileVirtualizer virtualizer = new JRSwapFileVirtualizer(300, new JRSwapFile(filepath.getAbsolutePath(), 4096, 100), true);
+                final JRSwapFileVirtualizer virtualizer = new JRSwapFileVirtualizer(300,
+                        new JRSwapFile(filepath.getAbsolutePath(), 4096, 100), true);
                 jasperParameters.put("REPORT_VIRTUALIZER", virtualizer);
             }
 
             final String dataListId = getPropertyDataListId(prop, workflowAssignment);
-            final Map<String, List<String>> filters = getPropertyDataListFilter(prop, dataList, report, workflowAssignment);
-            final JSONObject jsonResult = getDataListRow(dataListId, filters, settings.getSort(), settings.isDesc());
+            LogUtil.info(getClass().getName(), "Hello1");
+            if (dataListId.equals("")) {
+                final JSONObject jsonResult = new JSONObject();
 
-            try (final InputStream inputStream = new ByteArrayInputStream(jsonResult.toString().getBytes())) {
-                final JRDataSource ds = new JsonDataSource(inputStream, "data");
-                final JasperPrint print = JasperFillManager.fillReport(report, jasperParameters, ds);
-                return print;
+                try (final InputStream inputStream = new ByteArrayInputStream(jsonResult.toString().getBytes())) {
+                    final JRDataSource ds = new JsonDataSource(inputStream, "data");
+                    final JasperPrint print = JasperFillManager.fillReport(report, jasperParameters, ds);
+                    LogUtil.info(getClass().getName(), "Hello1.1");
+                    return print;
+                }
+            } else {
+                final Map<String, List<String>> filters = getPropertyDataListFilter(prop, dataList, report,
+                        workflowAssignment);
+                final JSONObject jsonResult = getDataListRow(dataListId, filters, settings.getSort(),
+                        settings.isDesc());
+
+                try (final InputStream inputStream = new ByteArrayInputStream(jsonResult.toString().getBytes())) {
+                    final JRDataSource ds = new JsonDataSource(inputStream, "data");
+                    final JasperPrint print = JasperFillManager.fillReport(report, jasperParameters, ds);
+                    return print;
+                }
             }
         } catch (IOException | JRException e) {
             throw new KecakJasperException("Error generating jasper", e);
         }
     }
-
 
     /**
      * Get property "fileName"
@@ -133,7 +148,6 @@ public interface DataListJasperMixin extends Declutter {
     default String getPropertyFileName(PropertyEditable menu) {
         return getOptionalProperty(menu, "filename");
     }
-
 
     /**
      * Get property "id"
@@ -188,7 +202,8 @@ public interface DataListJasperMixin extends Declutter {
      * @param workflowAssignment
      * @return
      */
-    default String getPropertyJrxml(PropertyEditable prop, WorkflowAssignment workflowAssignment) throws KecakJasperException {
+    default String getPropertyJrxml(PropertyEditable prop, WorkflowAssignment workflowAssignment)
+            throws KecakJasperException {
         return getRequiredProperty(prop, "jrxml", workflowAssignment);
     }
 
@@ -211,18 +226,25 @@ public interface DataListJasperMixin extends Declutter {
      * @param obj
      * @return
      */
-    default Map<String, List<String>> getPropertyDataListFilter(PropertyEditable obj, DataList dataList, JasperReport jasperReport, WorkflowAssignment workflowAssignment) {
+    default Map<String, List<String>> getPropertyDataListFilter(PropertyEditable obj, DataList dataList,
+            JasperReport jasperReport, WorkflowAssignment workflowAssignment) {
         final Map<String, List<String>> filters = new HashMap<>();
-
+        LogUtil.info(getClass().getName(), "Obj: " + obj);
+        LogUtil.info(getClass().getName(), "DL: " + dataList);
+        LogUtil.info(getClass().getName(), "JR: " + jasperReport);
+        LogUtil.info(getClass().getName(), "WA: " + workflowAssignment);
         // add filter from request parameter
         final DataListFilter[] dataListFilters = dataList.getFilters();
+        LogUtil.info(getClass().getName(), "Hello2");
         Arrays.stream(dataListFilters)
                 .filter(f -> f.getType() instanceof DataListFilterTypeDefault)
                 .forEach(filter -> {
                     final DataListFilterTypeDefault filterType = (DataListFilterTypeDefault) filter.getType();
 
                     final String parameterName = filter.getName();
-                    final String parameterValue = filterType.getValue(dataList, parameterName, filterType.getPropertyString("defaultValue"));
+                    LogUtil.info(getClass().getName(), "Hello3");
+                    final String parameterValue = filterType.getValue(dataList, parameterName,
+                            filterType.getPropertyString("defaultValue"));
 
                     if (parameterValue != null) {
                         if (filters.containsKey(parameterName)) {
@@ -288,16 +310,18 @@ public interface DataListJasperMixin extends Declutter {
                             .map(String::valueOf)
                             .orElse("");
 
-                    if(parameterValue.isEmpty()) {
+                    if (parameterValue.isEmpty()) {
                         return;
                     }
 
                     if (filters.containsKey(parameterName)) {
                         filters.get(parameterName).add(parameterValue);
                     } else {
-                        filters.put(parameterName, new ArrayList<String>() {{
-                            add(parameterValue);
-                        }});
+                        filters.put(parameterName, new ArrayList<String>() {
+                            {
+                                add(parameterValue);
+                            }
+                        });
                     }
                 });
 
@@ -318,7 +342,8 @@ public interface DataListJasperMixin extends Declutter {
                 .orElseGet(Stream::empty)
                 .filter(Objects::nonNull)
                 .map(o -> (Map<String, Object>) o)
-                .collect(Collectors.toMap(map -> String.valueOf(map.get("name")), it -> AppUtil.processHashVariable(String.valueOf(it.getOrDefault("value", "")), assignment, null, null)));
+                .collect(Collectors.toMap(map -> String.valueOf(map.get("name")), it -> AppUtil
+                        .processHashVariable(String.valueOf(it.getOrDefault("value", "")), assignment, null, null)));
     }
 
     /**
@@ -328,8 +353,9 @@ public interface DataListJasperMixin extends Declutter {
      * @return
      * @throws KecakJasperException
      */
-    default String getPropertyDataListId(PropertyEditable prop, WorkflowAssignment assignment) throws KecakJasperException {
-        return getRequiredProperty(prop, "dataListId", assignment);
+    default String getPropertyDataListId(PropertyEditable prop, WorkflowAssignment assignment)
+            throws KecakJasperException {
+        return getOptionalProperty(prop, "dataListId", "");
     }
 
     /**
@@ -340,14 +366,14 @@ public interface DataListJasperMixin extends Declutter {
      * @return
      * @throws KecakJasperException
      */
-    default String getRequiredProperty(PropertyEditable prop, String propertyName, WorkflowAssignment workflowAssignment) throws KecakJasperException {
+    default String getRequiredProperty(PropertyEditable prop, String propertyName,
+            WorkflowAssignment workflowAssignment) throws KecakJasperException {
         return Optional.of(propertyName)
                 .map(prop::getPropertyString)
                 .map(s -> processHashVariable(s, workflowAssignment))
                 .filter(not(String::isEmpty))
                 .orElseThrow(() -> new KecakJasperException("Property [" + propertyName + "] is required"));
     }
-
 
     /**
      * @param prop
@@ -396,7 +422,8 @@ public interface DataListJasperMixin extends Declutter {
         AppDefinition appDef = AppUtil.getCurrentAppDefinition();
 
         DataListService dataListService = (DataListService) appContext.getBean("dataListService");
-        DatalistDefinitionDao datalistDefinitionDao = (DatalistDefinitionDao) appContext.getBean("datalistDefinitionDao");
+        DatalistDefinitionDao datalistDefinitionDao = (DatalistDefinitionDao) appContext
+                .getBean("datalistDefinitionDao");
         DatalistDefinition datalistDefinition = datalistDefinitionDao.loadById(datalistId, appDef);
 
         return Optional.ofNullable(datalistDefinition)
@@ -414,7 +441,8 @@ public interface DataListJasperMixin extends Declutter {
      */
 
     @Nonnull
-    default JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters, @Nonnull String sort, boolean desc) throws KecakJasperException {
+    default JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters,
+            @Nonnull String sort, boolean desc) throws KecakJasperException {
         final DataList dataList = getDataList(dataListId);
         getCollectFilters(dataList, filters);
 
@@ -452,7 +480,8 @@ public interface DataListJasperMixin extends Declutter {
         return processHashVariable(content, null);
     }
 
-    default void generateImage(HttpServletRequest request, HttpServletResponse response, String imageName) throws IOException, ServletException, ApiException {
+    default void generateImage(HttpServletRequest request, HttpServletResponse response, String imageName)
+            throws IOException, ServletException, ApiException {
         final List<JasperPrint> jasperPrintList = BaseHttpServlet.getJasperPrintList(request);
         if (jasperPrintList == null) {
             throw new ServletException("No JasperPrint documents found on the HTTP session.");
@@ -486,7 +515,6 @@ public interface DataListJasperMixin extends Declutter {
         return AppUtil.processHashVariable(String.valueOf(content), assignment, null, null);
     }
 
-
     /**
      * Format Row
      *
@@ -507,7 +535,6 @@ public interface DataListJasperMixin extends Declutter {
                 .distinct()
                 .collect(Collectors.toMap(s -> s, s -> formatValue(dataList, row, s)));
     }
-
 
     /**
      * Format
@@ -543,7 +570,6 @@ public interface DataListJasperMixin extends Declutter {
                 .orElse(value);
     }
 
-
     /**
      * Get collect filters
      *
@@ -564,7 +590,6 @@ public interface DataListJasperMixin extends Declutter {
         dataList.getFilterQueryObjects();
         dataList.setFilters(null);
     }
-
 
     /**
      * Get custom header
@@ -599,11 +624,13 @@ public interface DataListJasperMixin extends Declutter {
      * @throws ApiException
      */
     @Nonnull
-    default String getRequiredParameter(@Nonnull HttpServletRequest request, @Nonnull String parameterName) throws ApiException {
+    default String getRequiredParameter(@Nonnull HttpServletRequest request, @Nonnull String parameterName)
+            throws ApiException {
         return Optional.of(parameterName)
                 .map(request::getParameter)
                 .filter(not(String::isEmpty))
-                .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Missing required parameter [" + parameterName + "]"));
+                .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST,
+                        "Missing required parameter [" + parameterName + "]"));
     }
 
     /**
@@ -615,13 +642,13 @@ public interface DataListJasperMixin extends Declutter {
      * @return
      */
     @Nonnull
-    default String getOptionalParameter(@Nonnull HttpServletRequest request, @Nonnull String parameterName, @Nonnull String defaultValue) {
+    default String getOptionalParameter(@Nonnull HttpServletRequest request, @Nonnull String parameterName,
+            @Nonnull String defaultValue) {
         return Optional.of(parameterName)
                 .map(request::getParameter)
                 .filter(not(String::isEmpty))
                 .orElse(defaultValue);
     }
-
 
     /**
      * Is string representation of value empty

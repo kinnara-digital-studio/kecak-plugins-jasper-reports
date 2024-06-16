@@ -18,6 +18,8 @@ import org.joget.apps.app.model.UserviewDefinition;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.datalist.model.DataList;
 import org.joget.apps.datalist.model.DataListBinder;
+import org.joget.apps.datalist.model.DataListCollection;
+import org.joget.apps.datalist.model.DataListColumn;
 import org.joget.apps.form.service.FormUtil;
 import org.joget.apps.userview.model.Userview;
 import org.joget.apps.userview.model.UserviewCategory;
@@ -49,8 +51,9 @@ import java.util.stream.Stream;
 
 /**
  * @author aristo
- * <p>
- * Requires changes in core version 7635059fff56091b95948e4b314f989a06fbb51e
+ *         <p>
+ *         Requires changes in core version
+ *         7635059fff56091b95948e4b314f989a06fbb51e
  */
 public class DataListJasperMenu extends UserviewMenu implements DataListJasperMixin, PluginWebSupport {
     public final static String LABEL = "DataList Jasper";
@@ -89,7 +92,8 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
     @Override
     public String getRenderPage() {
-        return getRenderPage("/templates/DataListJasperMenu.ftl", "/templates/DataListJasperMenuPdf.ftl", "/templates/jasperError.ftl");
+        return getRenderPage("/templates/DataListJasperMenu.ftl", "/templates/DataListJasperMenuPdf.ftl",
+                "/templates/jasperError.ftl");
     }
 
     @Override
@@ -133,8 +137,10 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
      * @throws IOException
      */
     @Override
-    public void webService(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        LogUtil.info(getClass().getName(), "Executing JSON Rest API [" + request.getRequestURI() + "] in method [" + request.getMethod() + "] as [" + WorkflowUtil.getCurrentUsername() + "]");
+    public void webService(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        LogUtil.info(getClass().getName(), "Executing JSON Rest API [" + request.getRequestURI() + "] in method ["
+                + request.getMethod() + "] as [" + WorkflowUtil.getCurrentUsername() + "]");
 
         try {
             final String action = getRequiredParameter(request, PARAM_ACTION);
@@ -142,7 +148,8 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                 case "rows": {
                     boolean isAdmin = WorkflowUtil.isCurrentUserInRole(WorkflowUtil.ROLE_ADMIN);
                     if (!isAdmin) {
-                        throw new ApiException(HttpServletResponse.SC_UNAUTHORIZED, "User [" + WorkflowUtil.getCurrentUsername() + "] is not admin");
+                        throw new ApiException(HttpServletResponse.SC_UNAUTHORIZED,
+                                "User [" + WorkflowUtil.getCurrentUsername() + "] is not admin");
                     }
 
                     final String dataListId = getRequiredParameter(request, PARAM_DATALIST_ID);
@@ -191,7 +198,14 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                     final String dataListId = getRequiredParameter(request, "dataListId");
 
                     final JSONObject jsonObject = new JSONObject();
-                    jsonObject.put("message", request.getRequestURL() + "?" + PARAM_ACTION + "=rows&" + PARAM_DATALIST_ID + "=" + dataListId);
+                    LogUtil.info(getClassName(), "DataList ID:" + dataListId);
+                    if (dataListId == null) {
+                        jsonObject.put("message",
+                                request.getRequestURL() + "?" + PARAM_ACTION + "=rows&" + PARAM_DATALIST_ID + "=");
+                    } else {
+                        jsonObject.put("message", request.getRequestURL() + "?" + PARAM_ACTION + "=rows&"
+                                + PARAM_DATALIST_ID + "=" + dataListId);
+                    }
 
                     response.getWriter().write(jsonObject.toString());
                     return;
@@ -214,11 +228,15 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                     final DataListJasperMenu selectedMenu = (DataListJasperMenu) Optional.of(json)
                             .map(String::trim)
                             .filter(not(String::isEmpty))
-                            .map(Try.onFunction(s -> findUserviewMenuFromPreview(s, menuId, contextPath, parameterMap, key)))
+                            .map(Try.onFunction(
+                                    s -> findUserviewMenuFromPreview(s, menuId, contextPath, parameterMap, key)))
                             .filter(m -> m instanceof DataListJasperMenu)
-                            .orElse(Optional.ofNullable(findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath, parameterMap))
+                            .orElse(Optional
+                                    .ofNullable(findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath,
+                                            parameterMap))
                                     .filter(m -> m instanceof DataListJasperMenu)
-                                    .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Menu [" + menuId + "] is not available in userview [" + userviewId + "]")));
+                                    .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Menu ["
+                                            + menuId + "] is not available in userview [" + userviewId + "]")));
 
                     final boolean useVirtualizer = getPropertyUseVirtualizer(selectedMenu);
                     final String jrxml = getPropertyJrxml(selectedMenu, null);
@@ -256,15 +274,18 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             model.put("request", request);
             model.put("exception", ex);
             PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
-            String content = pluginManager.getPluginFreeMarkerTemplate(model, getClass().getName(), "/templates/jasperError.ftl", null);
+            String content = pluginManager.getPluginFreeMarkerTemplate(model, getClass().getName(),
+                    "/templates/jasperError.ftl", null);
             response.setContentType("text/html");
             response.getOutputStream().write(content.getBytes(StandardCharsets.UTF_8));
         }
     }
 
-    protected UserviewMenu findUserviewMenuFromPreview(String json, String menuId, String contextPath, Map parameterMap, String key) throws BeansException, KecakJasperException {
+    protected UserviewMenu findUserviewMenuFromPreview(String json, String menuId, String contextPath, Map parameterMap,
+            String key) throws BeansException, KecakJasperException {
         UserviewService userviewService = (UserviewService) AppUtil.getApplicationContext().getBean("userviewService");
-        Userview userview = userviewService.createUserview(json, menuId, false, contextPath, parameterMap, key, Boolean.valueOf(true));
+        Userview userview = userviewService.createUserview(json, menuId, false, contextPath, parameterMap, key,
+                Boolean.valueOf(true));
         UserviewMenu selectedMenu = findUserviewMenuInUserview(userview, menuId);
         return selectedMenu;
     }
@@ -462,40 +483,74 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             model.put("showDataListFilter", "true".equalsIgnoreCase(getPropertyString("showDataListFilter")));
 
             final String dataListId = getPropertyString("dataListId");
+            // LogUtil.info(getClassName(), "DataList ID: " + dataListId);
             model.put("dataListId", dataListId);
 
-            final DataList dataList = getDataList(dataListId);
+            if (!dataListId.equals("")) {
+                final DataList dataList = getDataList(dataListId);
 
-            // filter template
-            final List<String> filterTemplates = new ArrayList<>();
+                // filter template
+                final List<String> filterTemplates = new ArrayList<>();
 
-            Pattern pagePattern = Pattern.compile("id='d-[0-9]+-p'|id='d-[0-9]+-ps'");
-            for (String filterTemplate : dataList.getFilterTemplates()) {
-                if (!pagePattern.matcher(filterTemplate).find()) {
-                    filterTemplates.add(filterTemplate);
+                Pattern pagePattern = Pattern.compile("id='d-[0-9]+-p'|id='d-[0-9]+-ps'");
+                for (String filterTemplate : dataList.getFilterTemplates()) {
+                    if (!pagePattern.matcher(filterTemplate).find()) {
+                        filterTemplates.add(filterTemplate);
+                    }
                 }
+
+                model.put("filterTemplates", filterTemplates);
+
+                final String sort = getSortBy();
+                final boolean desc = isSortDescending();
+                final boolean useVirtualizer = getPropertyUseVirtualizer(this);
+                final String jrxml = getPropertyJrxml(this, null);
+                final ReportSettings setting = new ReportSettings(sort, desc, useVirtualizer, jrxml);
+
+                final String outputType = getPropertyString("output");
+                final String jasperContent;
+
+                // PDF
+                if ("pdf".equalsIgnoreCase(outputType)) {
+                    jasperContent = generatePdfBody(pdfTemplate, userviewId, menuId, setting);
+                }
+
+                // HTML
+                else {
+                    jasperContent = generateHtmlBody(dataList, setting);
+                }
+                model.put("jasperContent", jasperContent);
+            } else {
+                // final DataList dataList = getDataList(dataListId);
+                // LogUtil.info(getClassName(),"NDL: " + dataList);
+
+                final String sort = getSortBy();
+                final boolean desc = isSortDescending();
+                final boolean useVirtualizer = getPropertyUseVirtualizer(this);
+                final String jrxml = getPropertyJrxml(this, null);
+                final ReportSettings setting = new ReportSettings(sort, desc, useVirtualizer, jrxml);
+
+                final String outputType = getPropertyString("output");
+                final String jasperContent;
+                // PDF
+                if ("pdf".equalsIgnoreCase(outputType)) {
+                    jasperContent = generatePdfBody(pdfTemplate, userviewId, menuId, setting);
+                }
+
+                // HTML
+                else {
+                    DataList emptyDataList = new DataList();
+                    DataListCollection<String> emptyDataListCollectionRow = new DataListCollection<>();
+                    emptyDataListCollectionRow.add("empty");
+                    emptyDataList.setRows(emptyDataListCollectionRow);
+                    LogUtil.info(getClassName(), "Setting: " + setting);
+                    LogUtil.info(getClassName(), "List of EDL: " + emptyDataList);
+                    jasperContent = generateHtmlBody(emptyDataList, setting);
+                    LogUtil.info(getClassName(), "Hello");
+                }
+                model.put("jasperContent", jasperContent);
             }
-            model.put("filterTemplates", filterTemplates);
 
-            final String sort = getSortBy();
-            final boolean desc = isSortDescending();
-            final boolean useVirtualizer = getPropertyUseVirtualizer(this);
-            final String jrxml = getPropertyJrxml(this, null);
-            final ReportSettings setting = new ReportSettings(sort, desc, useVirtualizer, jrxml);
-
-            final String outputType = getPropertyString("output");
-            final String jasperContent;
-            // PDF
-            if ("pdf".equalsIgnoreCase(outputType)) {
-                jasperContent = generatePdfBody(pdfTemplate, userviewId, menuId, setting);
-            }
-
-            // HTML
-            else {
-                jasperContent = generateHtmlBody(dataList, setting);
-            }
-
-            model.put("jasperContent", jasperContent);
             model.put("customHeader", header);
             model.put("customFooter", footer);
 

@@ -30,7 +30,6 @@
                 "name" : "dataListId",
                 "label": "@@userview.jasperReports.dataListId@@",
                 "type" : "selectbox",
-                "required" : "true",
                 "options_ajax" : "[CONTEXT_PATH]/web/json/console/app[APP_PATH]/datalist/options"
             },
             {
