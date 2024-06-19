@@ -198,7 +198,6 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                     final String dataListId = getRequiredParameter(request, "dataListId");
 
                     final JSONObject jsonObject = new JSONObject();
-                    LogUtil.info(getClassName(), "DataList ID:" + dataListId);
                     if (dataListId == null) {
                         jsonObject.put("message",
                                 request.getRequestURL() + "?" + PARAM_ACTION + "=rows&" + PARAM_DATALIST_ID + "=");
@@ -483,7 +482,6 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             model.put("showDataListFilter", "true".equalsIgnoreCase(getPropertyString("showDataListFilter")));
 
             final String dataListId = getPropertyString("dataListId");
-            // LogUtil.info(getClassName(), "DataList ID: " + dataListId);
             model.put("dataListId", dataListId);
 
             if (!dataListId.equals("")) {
@@ -521,8 +519,6 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                 }
                 model.put("jasperContent", jasperContent);
             } else {
-                // final DataList dataList = getDataList(dataListId);
-                // LogUtil.info(getClassName(),"NDL: " + dataList);
 
                 final String sort = getSortBy();
                 final boolean desc = isSortDescending();
@@ -543,10 +539,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                     DataListCollection<String> emptyDataListCollectionRow = new DataListCollection<>();
                     emptyDataListCollectionRow.add("empty");
                     emptyDataList.setRows(emptyDataListCollectionRow);
-                    LogUtil.info(getClassName(), "Setting: " + setting);
-                    LogUtil.info(getClassName(), "List of EDL: " + emptyDataList);
                     jasperContent = generateHtmlBody(emptyDataList, setting);
-                    LogUtil.info(getClassName(), "Hello");
                 }
                 model.put("jasperContent", jasperContent);
             }

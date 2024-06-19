@@ -112,14 +112,13 @@ public interface DataListJasperMixin extends Declutter {
             }
 
             final String dataListId = getPropertyDataListId(prop, workflowAssignment);
-            LogUtil.info(getClass().getName(), "Hello1");
             if (dataListId.equals("")) {
                 final JSONObject jsonResult = new JSONObject();
 
                 try (final InputStream inputStream = new ByteArrayInputStream(jsonResult.toString().getBytes())) {
-                    final JRDataSource ds = new JsonDataSource(inputStream, "data");
+                    // final JRDataSource ds = new JsonDataSource(inputStream, "data");
+                    final JRDataSource ds = new JREmptyDataSource();
                     final JasperPrint print = JasperFillManager.fillReport(report, jasperParameters, ds);
-                    LogUtil.info(getClass().getName(), "Hello1.1");
                     return print;
                 }
             } else {
@@ -229,20 +228,14 @@ public interface DataListJasperMixin extends Declutter {
     default Map<String, List<String>> getPropertyDataListFilter(PropertyEditable obj, DataList dataList,
             JasperReport jasperReport, WorkflowAssignment workflowAssignment) {
         final Map<String, List<String>> filters = new HashMap<>();
-        LogUtil.info(getClass().getName(), "Obj: " + obj);
-        LogUtil.info(getClass().getName(), "DL: " + dataList);
-        LogUtil.info(getClass().getName(), "JR: " + jasperReport);
-        LogUtil.info(getClass().getName(), "WA: " + workflowAssignment);
         // add filter from request parameter
         final DataListFilter[] dataListFilters = dataList.getFilters();
-        LogUtil.info(getClass().getName(), "Hello2");
         Arrays.stream(dataListFilters)
                 .filter(f -> f.getType() instanceof DataListFilterTypeDefault)
                 .forEach(filter -> {
                     final DataListFilterTypeDefault filterType = (DataListFilterTypeDefault) filter.getType();
 
                     final String parameterName = filter.getName();
-                    LogUtil.info(getClass().getName(), "Hello3");
                     final String parameterValue = filterType.getValue(dataList, parameterName,
                             filterType.getPropertyString("defaultValue"));
 
