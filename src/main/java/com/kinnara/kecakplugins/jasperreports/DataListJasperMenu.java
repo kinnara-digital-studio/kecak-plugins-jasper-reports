@@ -19,7 +19,6 @@ import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.datalist.model.DataList;
 import org.joget.apps.datalist.model.DataListBinder;
 import org.joget.apps.datalist.model.DataListCollection;
-import org.joget.apps.datalist.model.DataListColumn;
 import org.joget.apps.form.service.FormUtil;
 import org.joget.apps.userview.model.Userview;
 import org.joget.apps.userview.model.UserviewCategory;
@@ -27,9 +26,9 @@ import org.joget.apps.userview.model.UserviewMenu;
 import org.joget.apps.userview.service.UserviewService;
 import org.joget.commons.util.LogUtil;
 import org.joget.commons.util.StringUtil;
+import org.joget.plugin.base.ExtDefaultPlugin;
 import org.joget.plugin.base.PluginManager;
 import org.joget.plugin.base.PluginWebSupport;
-import org.joget.plugin.property.model.PropertyEditable;
 import org.joget.workflow.util.WorkflowUtil;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -143,7 +142,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                 + request.getMethod() + "] as [" + WorkflowUtil.getCurrentUsername() + "]");
 
         try {
-            final String action = getRequiredParameter(request, PARAM_ACTION);
+            final String action = getParameter(request, PARAM_ACTION);
             switch (action) {
                 case "rows": {
                     boolean isAdmin = WorkflowUtil.isCurrentUserInRole(WorkflowUtil.ROLE_ADMIN);
@@ -152,7 +151,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                                 "User [" + WorkflowUtil.getCurrentUsername() + "] is not admin");
                     }
 
-                    final String dataListId = getRequiredParameter(request, PARAM_DATALIST_ID);
+                    final String dataListId = getParameter(request, PARAM_DATALIST_ID);
 
                     final Map<String, List<String>> filters = Optional.of(request.getParameterMap())
                             .map(m -> (Map<String, String[]>) m)
@@ -173,7 +172,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
                 // get datalist fields
                 case "fieldsOptions": {
-                    final String dataListId = getRequiredParameter(request, "dataListId");
+                    final String dataListId = getParameter(request, "dataListId");
                     final DataList dataList = getDataList(dataListId);
                     final JSONArray jsonResponse = Optional.of(dataList)
                             .map(DataList::getBinder)
@@ -195,32 +194,32 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
                 // get json url
                 case "getJsonUrl": {
-                    final String dataListId = getRequiredParameter(request, "dataListId");
+                    final String dataListId = optParameter(request, "dataListId", "");
 
-                    final JSONObject jsonObject = new JSONObject();
-                    if (dataListId == null) {
-                        jsonObject.put("message",
-                                request.getRequestURL() + "?" + PARAM_ACTION + "=rows&" + PARAM_DATALIST_ID + "=");
-                    } else {
-                        jsonObject.put("message", request.getRequestURL() + "?" + PARAM_ACTION + "=rows&"
-                                + PARAM_DATALIST_ID + "=" + dataListId);
-                    }
-
+                    final JSONObject jsonObject = new JSONObject() {{
+                        final String message;
+                        if(dataListId.isEmpty()) {
+                            message = "";
+                        } else {
+                            message = request.getRequestURL() + "?action=rows&dataListId=" + dataListId;
+                        }
+                        put("message", message);
+                    }};
                     response.getWriter().write(jsonObject.toString());
                     return;
                 }
 
                 // report
                 case "report": {
-                    final String userviewId = getRequiredParameter(request, PARAM_USERVIEW_ID);
-                    final String key = getRequiredParameter(request, PARAM_KEY);
-                    final String menuId = getRequiredParameter(request, PARAM_MENU_ID);
-                    final String type = getRequiredParameter(request, PARAM_TYPE);
-                    final String json = getOptionalParameter(request, PARAM_JSON, "");
+                    final String userviewId = getParameter(request, PARAM_USERVIEW_ID);
+                    final String key = getParameter(request, PARAM_KEY);
+                    final String menuId = getParameter(request, PARAM_MENU_ID);
+                    final String type = getParameter(request, PARAM_TYPE);
+                    final String json = optParameter(request, PARAM_JSON, "");
                     final String contextPath = request.getContextPath();
                     final Map parameterMap = request.getParameterMap();
-                    final String sort = getOptionalParameter(request, PARAM_SORT, "");
-                    final boolean desc = "true".equalsIgnoreCase(getOptionalParameter(request, PARAM_DESC, ""));
+                    final String sort = optParameter(request, PARAM_SORT, "");
+                    final boolean desc = "true".equalsIgnoreCase(optParameter(request, PARAM_DESC, ""));
 
                     final AppDefinition appDef = AppUtil.getCurrentAppDefinition();
 
@@ -249,7 +248,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
                 // load image
                 case "image":
-                    final String imageName = getRequiredParameter(request, PARAM_IMAGE).trim();
+                    final String imageName = getParameter(request, PARAM_IMAGE).trim();
                     if (!imageName.isEmpty()) {
                         generateImage(request, response, imageName);
                         return;
@@ -431,7 +430,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
      * @param menu
      * @return
      */
-    protected String getFileName(PropertyEditable menu) {
+    protected String getFileName(ExtDefaultPlugin menu) {
         return ifEmpty(ifEmpty(getPropertyFileName(menu), getPropertyCustomId(menu)), getPropertyId(menu));
     }
 

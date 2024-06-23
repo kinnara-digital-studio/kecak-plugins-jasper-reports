@@ -21,7 +21,6 @@ import org.joget.apps.form.service.FormUtil;
 import org.joget.commons.util.LogUtil;
 import org.joget.plugin.base.PluginManager;
 import org.joget.plugin.base.PluginWebSupport;
-import org.joget.plugin.property.model.PropertyEditable;
 import org.joget.workflow.model.WorkflowAssignment;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.util.WorkflowUtil;
@@ -123,7 +122,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
         LogUtil.info(getClass().getName(), "Executing JSON Rest API [" + request.getRequestURI() + "] in method [" + request.getMethod() + "] as [" + WorkflowUtil.getCurrentUsername() + "]");
 
         try {
-            final String action = getRequiredParameter(request, PARAM_ACTION);
+            final String action = getParameter(request, PARAM_ACTION);
 
             // ROWS DATA
             if ("rows".equals(action)) {
@@ -132,7 +131,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                     throw new ApiException(HttpServletResponse.SC_UNAUTHORIZED, "User [" + WorkflowUtil.getCurrentUsername() + "] is not admin");
                 }
 
-                final String dataListId = getRequiredParameter(request, PARAM_DATALIST_ID);
+                final String dataListId = getParameter(request, PARAM_DATALIST_ID);
 
                 final Map<String, List<String>> filters = Optional.of(request.getParameterMap())
                         .map(m -> (Map<String, String[]>) m)
@@ -142,8 +141,8 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                         .filter(Objects::nonNull)
                         .collect(Collectors.toMap(Map.Entry::getKey, entry -> Arrays.asList(entry.getValue())));
 
-                final String sort = getOptionalParameter(request, PARAM_SORT, "");
-                final boolean desc = "true".equalsIgnoreCase(getOptionalParameter(request, PARAM_DESC, ""));
+                final String sort = optParameter(request, PARAM_SORT, "");
+                final boolean desc = "true".equalsIgnoreCase(optParameter(request, PARAM_DESC, ""));
                 final JSONObject jsonResult = getDataListRow(dataListId, filters, sort, desc);
                 response.getWriter().write(jsonResult.toString());
 
@@ -152,7 +151,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
 
             // JSON URL
             else if ("getJsonUrl".equals(action)) {
-                final String dataListId = getRequiredParameter(request, "dataListId");
+                final String dataListId = getParameter(request, "dataListId");
 
                 JSONObject jsonObject = new JSONObject();
                 jsonObject.put("message", request.getRequestURL() + "?" + PARAM_ACTION + "=rows&" + PARAM_DATALIST_ID + "=" + dataListId);
@@ -163,12 +162,12 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
 
             // REPORT
             else if ("report".equalsIgnoreCase(action)) {
-                final String formDefId = getRequiredParameter(request, PARAM_FORM_ID);
-                final String elementId = getRequiredParameter(request, PARAM_ELEMENT_ID);
-                final String primaryKey = getRequiredParameter(request, "id");
-                final String type = getRequiredParameter(request, PARAM_TYPE);
-                final String assignmentId = getOptionalParameter(request, PARAM_ASSIGNMENT_ID, "");
-                final String processId = getOptionalParameter(request, PARAM_PROCESS_ID, "");
+                final String formDefId = getParameter(request, PARAM_FORM_ID);
+                final String elementId = getParameter(request, PARAM_ELEMENT_ID);
+                final String primaryKey = getParameter(request, "id");
+                final String type = getParameter(request, PARAM_TYPE);
+                final String assignmentId = optParameter(request, PARAM_ASSIGNMENT_ID, "");
+                final String processId = optParameter(request, PARAM_PROCESS_ID, "");
 
                 if ("pdf".equalsIgnoreCase(type)) {
                     final Form form = generateForm(formDefId, formCache);
@@ -199,7 +198,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
 
             // LOAD IMAGE
             else if ("image".equals(action)) {
-                final String imageName = getRequiredParameter(request, "image").trim();
+                final String imageName = getParameter(request, "image").trim();
                 if (!imageName.isEmpty()) {
                     generateImage(request, response, imageName);
                     return;

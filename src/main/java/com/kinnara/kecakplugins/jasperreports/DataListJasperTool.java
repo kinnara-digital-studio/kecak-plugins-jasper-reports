@@ -20,7 +20,6 @@ import org.joget.plugin.base.PluginManager;
 import org.joget.plugin.base.PluginWebSupport;
 import org.joget.workflow.model.WorkflowAssignment;
 import org.joget.workflow.model.WorkflowProcess;
-import org.joget.workflow.model.WorkflowProcessLink;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.util.WorkflowUtil;
 import org.json.JSONException;
@@ -131,9 +130,9 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
                 throw new ApiException(HttpServletResponse.SC_UNAUTHORIZED, "User [" + WorkflowUtil.getCurrentUsername() + "] is not admin");
             }
 
-            String action = getRequiredParameter(request, "action");
+            String action = getParameter(request, "action");
             if ("rows".equals(action)) {
-                String dataListId = getRequiredParameter(request, "dataListId");
+                String dataListId = getParameter(request, "dataListId");
 
                 Map<String, List<String>> filters = Optional.of(request.getParameterMap())
                         .map(m -> (Map<String, String[]>) m)
@@ -154,10 +153,17 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
 
             // get json url
             else if ("getJsonUrl".equals(action)) {
-                String dataListId = getRequiredParameter(request, "dataListId");
+                final String dataListId = optParameter(request, "dataListId", "");
                 try {
-                    JSONObject jsonObject = new JSONObject();
-                    jsonObject.put("message", request.getRequestURL() + "?action=rows&dataListId=" + dataListId);
+                    final JSONObject jsonObject = new JSONObject() {{
+                        final String message;
+                        if(dataListId.isEmpty()) {
+                            message = "";
+                        } else {
+                            message = request.getRequestURL() + "?action=rows&dataListId=" + dataListId;
+                        }
+                        put("message", message);
+                    }};
                     response.getWriter().write(jsonObject.toString());
                     return;
                 } catch (JSONException e) {
