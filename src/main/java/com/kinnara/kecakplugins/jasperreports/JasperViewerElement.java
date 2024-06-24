@@ -113,7 +113,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
     @Override
     public String getPropertyOptions() {
         Object[] arguments = new Object[]{getClassName()};
-        String json = AppUtil.readPluginResource(getClassName(), "/properties/jasperViewerElement.json", arguments, true, "message/jasperReports").replaceAll("\"", "'");
+        String json = AppUtil.readPluginResource(getClassName(), "/properties/jasperViewerElement.json", arguments, true, "messages/jasperReports");
         return json;
     }
 
@@ -245,16 +245,17 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                 response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".xls");
                 LogUtil.debug(this.getClass().getName(), ("Generating XLS report for " + fileName));
 
-                final JRXlsExporter exporter = new JRXlsExporter();
-                exporter.setExporterInput(new SimpleExporterInput(print));
-                exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(output));
+                final JRXlsExporter exporter = new JRXlsExporter() {{
+                    setExporterInput(new SimpleExporterInput(print));
+                    setExporterOutput(new SimpleOutputStreamExporterOutput(output));
+                    setConfiguration(new SimpleXlsReportConfiguration() {{
+                        setOnePagePerSheet(true);
+                        setDetectCellType(true);
+                        setCollapseRowSpan(false);
+                        setWhitePageBackground(false);
+                    }});
+                }};
 
-                SimpleXlsReportConfiguration configuration = new SimpleXlsReportConfiguration();
-                configuration.setOnePagePerSheet(true);
-                configuration.setDetectCellType(true);
-                configuration.setCollapseRowSpan(false);
-                configuration.setWhitePageBackground(false);
-                exporter.setConfiguration(configuration);
                 exporter.exportReport();
             } else {
                 response.setHeader("Content-Type", "text/html; charset=UTF-8");
@@ -265,23 +266,18 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                     request.getSession().setAttribute("net.sf.jasperreports.j2ee.jasper_print", print);
                 }
 
-                final HtmlExporter htmlExporter = new HtmlExporter();
-                htmlExporter.setExporterInput(new SimpleExporterInput(print));
+                final HtmlExporter htmlExporter = new HtmlExporter() {{
+                    setExporterInput(new SimpleExporterInput(print));
 
-                { // set exporter output
-                    final SimpleHtmlExporterOutput exporterOutput = new SimpleHtmlExporterOutput(output);
-                    { // set image handler
+                    setConfiguration(new SimpleHtmlExporterConfiguration());
+
+                    setExporterOutput(new SimpleHtmlExporterOutput(output) {{
+                        // set image handler
                         final String imagesUriPattern = AppUtil.getRequestContextPath() + "/web/json/plugin/" + getClassName() + "/service?" + PARAM_IMAGE + "={0}";
                         final WebHtmlResourceHandler resourceHandler = new WebHtmlResourceHandler(imagesUriPattern);
-                        exporterOutput.setImageHandler(resourceHandler);
-                    }
-                    htmlExporter.setExporterOutput(exporterOutput);
-                }
-
-                { // set configuration
-                    final SimpleHtmlExporterConfiguration configuration = new SimpleHtmlExporterConfiguration();
-                    htmlExporter.setConfiguration(configuration);
-                }
+                        setImageHandler(resourceHandler);
+                    }});
+                }};
 
                 htmlExporter.exportReport();
             }
