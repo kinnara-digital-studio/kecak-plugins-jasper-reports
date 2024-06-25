@@ -325,6 +325,6 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
 
 
     protected String getPropertyDataListId(WorkflowAssignment assignment) throws KecakJasperException {
-        return getRequiredProperty(this, "dataListId", assignment);
+        return getOptionalProperty(this, "dataListId", "");
     }
 }
