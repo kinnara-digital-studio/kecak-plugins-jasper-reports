@@ -1,7 +1,7 @@
-package com.kinnara.kecakplugins.jasperreports.utils;
+package com.kinnarastudio.kecakplugins.jasperreports.utils;
 
-import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
-import com.kinnara.kecakplugins.jasperreports.model.ReportSettings;
+import com.kinnarastudio.kecakplugins.jasperreports.exception.KecakJasperException;
+import com.kinnarastudio.kecakplugins.jasperreports.model.ReportSettings;
 import com.kinnarastudio.commons.Declutter;
 import com.kinnarastudio.commons.Try;
 import com.kinnarastudio.commons.jsonstream.JSONCollectors;

@@ -1,4 +1,4 @@
-package com.kinnara.kecakplugins.jasperreports.exception;
+package com.kinnarastudio.kecakplugins.jasperreports.exception;
 
 public class ApiException extends Exception {
     private int errorCode;

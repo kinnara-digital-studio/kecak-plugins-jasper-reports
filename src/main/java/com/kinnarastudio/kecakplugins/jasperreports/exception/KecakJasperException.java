@@ -1,4 +1,4 @@
-package com.kinnara.kecakplugins.jasperreports.exception;
+package com.kinnarastudio.kecakplugins.jasperreports.exception;
 
 public class KecakJasperException extends Exception {
     public KecakJasperException(Throwable cause) {

@@ -1,4 +1,4 @@
-package com.kinnara.kecakplugins.jasperreports;
+package com.kinnarastudio.kecakplugins.jasperreports;
 
 import java.util.ArrayList;
 import java.util.Collection;

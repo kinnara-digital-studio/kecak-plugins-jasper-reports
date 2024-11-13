@@ -1,4 +1,4 @@
-package com.kinnara.kecakplugins.jasperreports.model;
+package com.kinnarastudio.kecakplugins.jasperreports.model;
 
 public class ReportSettings {
     private final String sort;
