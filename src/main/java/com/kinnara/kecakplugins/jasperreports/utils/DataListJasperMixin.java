@@ -27,7 +27,6 @@ import org.joget.apps.form.model.Form;
 import org.joget.apps.form.model.FormData;
 import org.joget.apps.form.service.FormService;
 import org.joget.apps.userview.model.UserviewMenu;
-import org.joget.commons.util.LogUtil;
 import org.joget.commons.util.SetupManager;
 import org.joget.plugin.property.model.PropertyEditable;
 import org.joget.workflow.model.WorkflowAssignment;
@@ -54,6 +53,7 @@ import java.util.stream.Stream;
 public interface DataListJasperMixin extends Declutter {
     String PARAM_ACTION = "_action";
     String PARAM_DATALIST_ID = "_dataListId";
+    String PARAM_ROWS = "_rows";
     String PARAM_USERVIEW_ID = "_userviewId";
     String PARAM_MENU_ID = "_menuId";
     String PARAM_KEY = "key";
@@ -110,7 +110,7 @@ public interface DataListJasperMixin extends Declutter {
 
             final String dataListId = getPropertyDataListId(prop, workflowAssignment);
             final Map<String, List<String>> filters = getPropertyDataListFilter(prop, dataList, report, workflowAssignment);
-            final JSONObject jsonResult = getDataListRow(dataListId, filters, settings.getSort(), settings.isDesc());
+            final JSONObject jsonResult = getDataListRow(dataListId, filters, settings.getSort(), settings.isDesc(), null);
 
             try (final InputStream inputStream = new ByteArrayInputStream(jsonResult.toString().getBytes())) {
                 final JRDataSource ds = new JsonDataSource(inputStream, "data");
@@ -287,7 +287,7 @@ public interface DataListJasperMixin extends Declutter {
                             .map(String::valueOf)
                             .orElse("");
 
-                    if(parameterValue.isEmpty()) {
+                    if (parameterValue.isEmpty()) {
                         return;
                     }
 
@@ -412,7 +412,7 @@ public interface DataListJasperMixin extends Declutter {
      * @return
      */
     @Nonnull
-    default JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters, @Nonnull String sort, boolean desc) throws KecakJasperException {
+    default JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters, @Nonnull String sort, boolean desc, Integer size) throws KecakJasperException {
         final DataList dataList = getDataList(dataListId);
         getCollectFilters(dataList, filters);
 
@@ -423,7 +423,7 @@ public interface DataListJasperMixin extends Declutter {
             dataList.setDefaultOrder(desc ? DataList.ORDER_DESCENDING_VALUE : DataList.ORDER_ASCENDING_VALUE);
         }
 
-        final DataListCollection<Map<String, Object>> rows = dataList.getRows(DataList.MAXIMUM_PAGE_SIZE, 0);
+        final DataListCollection<Map<String, Object>> rows = dataList.getRows(Optional.ofNullable(size).orElse(DataList.MAXIMUM_PAGE_SIZE), 0);
 
         final JSONArray jsonArrayData = Optional.ofNullable(rows)
                 .map(Collection::stream)
@@ -604,6 +604,16 @@ public interface DataListJasperMixin extends Declutter {
                 .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Missing required parameter [" + parameterName + "]"));
     }
 
+    default Optional<Integer> optIntegerParameter(@Nonnull HttpServletRequest request, @Nonnull String parameterName) {
+        return optParameter(request, parameterName)
+                .map(Integer::parseInt);
+    }
+
+    default Optional<String> optParameter(@Nonnull HttpServletRequest request, @Nonnull String parameterName) {
+        return Optional.of(parameterName)
+                .map(request::getParameter);
+    }
+
     /**
      * Get optional parameter
      *
@@ -614,9 +624,7 @@ public interface DataListJasperMixin extends Declutter {
      */
     @Nonnull
     default String getOptionalParameter(@Nonnull HttpServletRequest request, @Nonnull String parameterName, @Nonnull String defaultValue) {
-        return Optional.of(parameterName)
-                .map(request::getParameter)
-                .filter(not(String::isEmpty))
+        return optParameter(request, parameterName)
                 .orElse(defaultValue);
     }
 

@@ -132,6 +132,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
             String action = getRequiredParameter(request, "action");
             if ("rows".equals(action)) {
                 String dataListId = getRequiredParameter(request, "dataListId");
+                Integer rows = optIntegerParameter(request, PARAM_ROWS).orElse(null);
 
                 Map<String, List<String>> filters = Optional.of(request.getParameterMap())
                         .map(m -> (Map<String, String[]>) m)
@@ -142,7 +143,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
                         .collect(Collectors.toMap(Map.Entry::getKey, entry -> Arrays.asList(entry.getValue())));
 
                 try {
-                    JSONObject jsonResult = getDataListRow(dataListId, filters, null, false);
+                    JSONObject jsonResult = getDataListRow(dataListId, filters, null, false, rows);
                     response.getWriter().write(jsonResult.toString());
                     return;
                 } catch (KecakJasperException e) {

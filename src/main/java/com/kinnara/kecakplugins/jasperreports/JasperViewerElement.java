@@ -133,6 +133,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                 }
 
                 final String dataListId = getRequiredParameter(request, PARAM_DATALIST_ID);
+                final Integer rows = optIntegerParameter(request, PARAM_ROWS).orElse(null);
 
                 final Map<String, List<String>> filters = Optional.of(request.getParameterMap())
                         .map(m -> (Map<String, String[]>) m)
@@ -144,7 +145,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
 
                 final String sort = getOptionalParameter(request, PARAM_SORT, "");
                 final boolean desc = "true".equalsIgnoreCase(getOptionalParameter(request, PARAM_DESC, ""));
-                final JSONObject jsonResult = getDataListRow(dataListId, filters, sort, desc);
+                final JSONObject jsonResult = getDataListRow(dataListId, filters, sort, desc, rows);
                 response.getWriter().write(jsonResult.toString());
 
                 return;

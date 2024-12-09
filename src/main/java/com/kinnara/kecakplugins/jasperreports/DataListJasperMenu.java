@@ -141,6 +141,8 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
         try {
             final String action = getRequiredParameter(request, PARAM_ACTION);
             if ("rows".equals(action)) {
+                final Integer rows = optIntegerParameter(request, PARAM_ROWS)
+                        .orElse(null);
                 boolean isAdmin = WorkflowUtil.isCurrentUserInRole(WorkflowUtil.ROLE_ADMIN);
                 if (!isAdmin) {
                     throw new ApiException(HttpServletResponse.SC_UNAUTHORIZED, "User [" + WorkflowUtil.getCurrentUsername() + "] is not admin");
@@ -159,7 +161,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                 final String sort = getSortBy();
                 final boolean desc = isSortDescending();
 
-                final JSONObject jsonResult = getDataListRow(dataListId, filters, sort, desc);
+                final JSONObject jsonResult = getDataListRow(dataListId, filters, sort, desc, rows);
                 response.getWriter().write(jsonResult.toString());
 
                 return;
