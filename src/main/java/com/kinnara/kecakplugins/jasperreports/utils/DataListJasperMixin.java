@@ -51,21 +51,21 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public interface DataListJasperMixin extends Declutter {
-    String PARAM_ACTION = "_action";
-    String PARAM_DATALIST_ID = "_dataListId";
-    String PARAM_ROWS = "_rows";
-    String PARAM_USERVIEW_ID = "_userviewId";
-    String PARAM_MENU_ID = "_menuId";
+    String PARAM_ACTION = "action";
+    String PARAM_DATALIST_ID = "dataListId";
+    String PARAM_ROWS = "rows";
+    String PARAM_USERVIEW_ID = "userviewId";
+    String PARAM_MENU_ID = "menuId";
     String PARAM_KEY = "key";
-    String PARAM_TYPE = "_type";
-    String PARAM_JSON = "_json";
-    String PARAM_IMAGE = "_image";
-    String PARAM_ELEMENT_ID = "_elementId";
-    String PARAM_FORM_ID = "_formId";
-    String PARAM_ASSIGNMENT_ID = "_assignmentId";
-    String PARAM_PROCESS_ID = "_processId";
-    String PARAM_SORT = "_sort";
-    String PARAM_DESC = "_desc";
+    String PARAM_TYPE = "type";
+    String PARAM_JSON = "json";
+    String PARAM_IMAGE = "image";
+    String PARAM_ELEMENT_ID = "elementId";
+    String PARAM_FORM_ID = "formId";
+    String PARAM_ASSIGNMENT_ID = "assignmentId";
+    String PARAM_PROCESS_ID = "processId";
+    String PARAM_SORT = "sort";
+    String PARAM_DESC = "desc";
 
     /**
      * Stream element children

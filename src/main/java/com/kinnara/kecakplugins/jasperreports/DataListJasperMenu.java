@@ -340,7 +340,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
         final PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
         final Map<String, Object> model = new HashMap<>();
         model.put("ratio", "4by3");
-        model.put("src", "/web/json/app/" + appDefinition.getAppId() + "/" + appDefinition.getVersion() + "/plugin/" + getClassName() + "/service?_action=report&_menuId=" + menuId + "&key=_&_userviewId=" + userviewId + "&_type=pdf");
+        model.put("src", "/web/json/app/" + appDefinition.getAppId() + "/" + appDefinition.getVersion() + "/plugin/" + getClassName() + "/service?action=report&menuId=" + menuId + "&key=_&userviewId=" + userviewId + "&type=pdf");
         return pluginManager.getPluginFreeMarkerTemplate(model, getClass().getName(), pdfTemplate, null);
     }
 

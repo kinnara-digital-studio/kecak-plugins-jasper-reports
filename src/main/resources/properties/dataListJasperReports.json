@@ -54,7 +54,7 @@
                 "label": "@@userview.jasperReports.dataListSortBy@@",
                 "type" : "selectbox",
                 "options_ajax_on_change": "dataListId",
-                "options_ajax": "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?_action=fieldsOptions"
+                "options_ajax": "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?action=fieldsOptions"
             },
             {
                 "name": "dataListSortDescending",
@@ -135,7 +135,7 @@
             {
                 "name": "getJsonUrl",
                 "label": "@@userview.jasperReports.getJsonUrl@@",
-                "ajax_url": "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?_action=getJsonUrl",
+                "ajax_url": "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?action=getJsonUrl",
                 "fields": ["dataListId"]
             }
         ]

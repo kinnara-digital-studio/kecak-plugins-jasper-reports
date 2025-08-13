@@ -110,7 +110,7 @@
       {
         "name": "getJsonUrl",
         "label": "@@userview.jasperReports.getJsonUrl@@",
-        "ajax_url": "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?_action=getJsonUrl",
+        "ajax_url": "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?action=getJsonUrl",
         "fields": ["dataListId"]
       }
     ]
