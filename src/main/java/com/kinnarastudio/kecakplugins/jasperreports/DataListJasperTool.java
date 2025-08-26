@@ -73,7 +73,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
                 final String jrxml = getPropertyJrxml(this, workflowAssignment);
                 final String dataListId = getPropertyDataListId(this, workflowAssignment);
                 final DataList dataList = getDataList(dataListId, workflowAssignment);
-                final ReportSettings setting = new ReportSettings("id", false, useVirtualizer, jrxml);
+                final ReportSettings setting = new ReportSettings("id", false, dataList.getSize(), useVirtualizer, jrxml);
                 final JasperPrint jasperPrint = getJasperPrint(this, dataList, workflowAssignment, setting);
 
                 JasperExportManager.exportReportToPdfStream(jasperPrint, bos);
@@ -133,6 +133,10 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
             String action = getParameter(request, "action");
             if ("rows".equals(action)) {
                 String dataListId = getParameter(request, "dataListId");
+                int rows = optParameter(request, PARAM_ROWS)
+                        .filter(s -> s.matches("\\d+"))
+                        .map(Integer::parseInt)
+                        .orElse(Integer.MAX_VALUE);
 
                 Map<String, List<String>> filters = Optional.of(request.getParameterMap())
                         .map(m -> (Map<String, String[]>) m)
@@ -143,7 +147,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
                         .collect(Collectors.toMap(Map.Entry::getKey, entry -> Arrays.asList(entry.getValue())));
 
                 try {
-                    JSONObject jsonResult = getDataListRow(dataListId, filters, null, false);
+                    JSONObject jsonResult = getDataListRow(dataListId, filters, null, false, rows);
                     response.getWriter().write(jsonResult.toString());
                     return;
                 } catch (KecakJasperException e) {

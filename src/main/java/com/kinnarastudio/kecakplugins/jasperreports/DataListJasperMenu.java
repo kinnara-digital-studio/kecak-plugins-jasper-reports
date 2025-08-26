@@ -145,6 +145,11 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             final String action = getParameter(request, PARAM_ACTION);
             switch (action) {
                 case "rows": {
+                    final int rows = optParameter(request, PARAM_ROWS)
+                            .filter(s -> s.matches("\\d+"))
+                            .map(Integer::parseInt)
+                            .orElse(Integer.MAX_VALUE);
+
                     boolean isAdmin = WorkflowUtil.isCurrentUserInRole(WorkflowUtil.ROLE_ADMIN);
                     if (!isAdmin) {
                         throw new ApiException(HttpServletResponse.SC_UNAUTHORIZED,
@@ -156,15 +161,15 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                     final Map<String, List<String>> filters = Optional.of(request.getParameterMap())
                             .map(m -> (Map<String, String[]>) m)
                             .map(Map::entrySet)
-                            .map(Collection::stream)
-                            .orElseGet(Stream::empty)
+                            .stream()
+                            .flatMap(Collection::stream)
                             .filter(Objects::nonNull)
                             .collect(Collectors.toMap(Map.Entry::getKey, entry -> Arrays.asList(entry.getValue())));
 
                     final String sort = getSortBy();
                     final boolean desc = isSortDescending();
 
-                    final JSONObject jsonResult = getDataListRow(dataListId, filters, sort, desc);
+                    final JSONObject jsonResult = getDataListRow(dataListId, filters, sort, desc, rows);
                     response.getWriter().write(jsonResult.toString());
 
                     return;
@@ -177,8 +182,8 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                     final JSONArray jsonResponse = Optional.of(dataList)
                             .map(DataList::getBinder)
                             .map(DataListBinder::getColumns)
-                            .map(Arrays::stream)
-                            .orElseGet(Stream::empty)
+                            .stream()
+                            .flatMap(Arrays::stream)
                             .filter(Objects::nonNull)
                             .map(Try.onFunction(c -> {
                                 final JSONObject json = new JSONObject();
@@ -220,6 +225,10 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                     final Map parameterMap = request.getParameterMap();
                     final String sort = optParameter(request, PARAM_SORT, "");
                     final boolean desc = "true".equalsIgnoreCase(optParameter(request, PARAM_DESC, ""));
+                    final int rows = optParameter(request, PARAM_ROWS)
+                            .filter(s -> s.matches("\\d+"))
+                            .map(Integer::parseInt)
+                            .orElse(Integer.MAX_VALUE);
 
                     final AppDefinition appDef = AppUtil.getCurrentAppDefinition();
 
@@ -240,7 +249,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                     final String jrxml = getPropertyJrxml(selectedMenu, null);
                     final String dataListId = selectedMenu.getPropertyDataListId();
                     final DataList dataList = getDataList(dataListId);
-                    final ReportSettings settings = new ReportSettings(sort, desc, useVirtualizer, jrxml);
+                    final ReportSettings settings = new ReportSettings(sort, desc, rows, useVirtualizer, jrxml);
                     generateReport(selectedMenu, type, request, response, dataList, settings);
 
                     return;
@@ -502,7 +511,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                 final boolean desc = isSortDescending();
                 final boolean useVirtualizer = getPropertyUseVirtualizer(this);
                 final String jrxml = getPropertyJrxml(this, null);
-                final ReportSettings setting = new ReportSettings(sort, desc, useVirtualizer, jrxml);
+                final ReportSettings setting = new ReportSettings(sort, desc, dataList.getSize(), useVirtualizer, jrxml);
 
                 final String outputType = getPropertyString("output");
                 final String jasperContent;
@@ -518,12 +527,11 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                 }
                 model.put("jasperContent", jasperContent);
             } else {
-
                 final String sort = getSortBy();
                 final boolean desc = isSortDescending();
                 final boolean useVirtualizer = getPropertyUseVirtualizer(this);
                 final String jrxml = getPropertyJrxml(this, null);
-                final ReportSettings setting = new ReportSettings(sort, desc, useVirtualizer, jrxml);
+                final ReportSettings setting = new ReportSettings(sort, desc, Integer.MAX_VALUE, useVirtualizer, jrxml);
 
                 final String outputType = getPropertyString("output");
                 final String jasperContent;

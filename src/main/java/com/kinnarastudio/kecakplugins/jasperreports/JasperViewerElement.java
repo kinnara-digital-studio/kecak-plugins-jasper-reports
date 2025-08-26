@@ -143,7 +143,11 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
 
                 final String sort = optParameter(request, PARAM_SORT, "");
                 final boolean desc = "true".equalsIgnoreCase(optParameter(request, PARAM_DESC, ""));
-                final JSONObject jsonResult = getDataListRow(dataListId, filters, sort, desc);
+                int rows = optParameter(request, PARAM_ROWS)
+                        .filter(s -> s.matches("\\d+"))
+                        .map(Integer::parseInt)
+                        .orElse(Integer.MAX_VALUE);
+                final JSONObject jsonResult = getDataListRow(dataListId, filters, sort, desc, rows);
                 response.getWriter().write(jsonResult.toString());
 
                 return;
@@ -228,9 +232,10 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
 
         final String sort = element.getPropertyString("dataListSortBy");
         final boolean desc = "true".equalsIgnoreCase(element.getPropertyString("dataListSortDesc"));
+        final int size = dataList.getSize();
         final boolean useVirtualizer = getPropertyUseVirtualizer(element);
         final String jrxml = getPropertyJrxml(element, workflowAssignment);
-        final ReportSettings settings = new ReportSettings(sort, desc, useVirtualizer, jrxml);
+        final ReportSettings settings = new ReportSettings(sort, desc, size, useVirtualizer, jrxml);
         final JasperPrint print = getJasperPrint(element, dataList, workflowAssignment, settings);
 
         try (final OutputStream output = response.getOutputStream()) {

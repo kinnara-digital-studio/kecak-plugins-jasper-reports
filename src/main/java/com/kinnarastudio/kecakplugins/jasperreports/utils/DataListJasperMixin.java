@@ -55,6 +55,7 @@ import java.util.stream.Stream;
 
 public interface DataListJasperMixin extends Declutter {
     String PARAM_ACTION = "_action";
+    String PARAM_ROWS = "_rows";
     String PARAM_DATALIST_ID = "_dataListId";
     String PARAM_USERVIEW_ID = "_userviewId";
     String PARAM_MENU_ID = "_menuId";
@@ -121,7 +122,7 @@ public interface DataListJasperMixin extends Declutter {
                 final Map<String, List<String>> filters = getPropertyDataListFilter(prop, dataList, report,
                         workflowAssignment);
                 final JSONObject jsonResult = getDataListRow(dataListId, filters, settings.getSort(),
-                        settings.isDesc());
+                        settings.isDesc(), settings.getSize());
 
                 try (final InputStream inputStream = new ByteArrayInputStream(jsonResult.toString().getBytes())) {
                     final JRDataSource ds = new JsonDataSource(inputStream, "data");
@@ -405,10 +406,10 @@ public interface DataListJasperMixin extends Declutter {
      * @return
      * @throws KecakJasperException
      */
-    @Nullable
+    @Nonnull
     default DataList getDataList(String datalistId, WorkflowAssignment workflowAssignment) throws KecakJasperException {
         if(datalistId.isEmpty()) {
-            return null;
+            throw new KecakJasperException("DataList ID is required");
         }
         ApplicationContext appContext = AppUtil.getApplicationContext();
         AppDefinition appDef = AppUtil.getCurrentAppDefinition();
@@ -434,8 +435,9 @@ public interface DataListJasperMixin extends Declutter {
 
     @Nonnull
     default JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters,
-            @Nonnull String sort, boolean desc) throws KecakJasperException {
+            @Nonnull String sort, boolean desc, int size) throws KecakJasperException {
         final DataList dataList = getDataList(dataListId);
+        dataList.setSize(size);
         getCollectFilters(dataList, filters);
 
         if (!sort.isEmpty()) {
@@ -448,8 +450,8 @@ public interface DataListJasperMixin extends Declutter {
         final DataListCollection<Map<String, Object>> rows = dataList.getRows(DataList.MAXIMUM_PAGE_SIZE, 0);
 
         final JSONArray jsonArrayData = Optional.ofNullable(rows)
-                .map(Collection::stream)
-                .orElseGet(Stream::empty)
+                .stream()
+                .flatMap(Collection::stream)
                 .map(m -> formatRow(dataList, m))
                 .map(JSONObject::new)
                 .collect(JSONCollectors.toJSONArray());
@@ -618,9 +620,7 @@ public interface DataListJasperMixin extends Declutter {
     @Nonnull
     default String getParameter(@Nonnull HttpServletRequest request, @Nonnull String parameterName)
             throws ApiException {
-        return Optional.of(parameterName)
-                .map(request::getParameter)
-                .filter(not(String::isEmpty))
+        return optParameter(request, parameterName)
                 .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST,
                         "Missing required parameter [" + parameterName + "]"));
     }
@@ -636,10 +636,15 @@ public interface DataListJasperMixin extends Declutter {
     @Nonnull
     default String optParameter(@Nonnull HttpServletRequest request, @Nonnull String parameterName,
                                 @Nonnull String defaultValue) {
+        return optParameter(request, parameterName)
+                .orElse(defaultValue);
+    }
+
+    @Nonnull
+    default Optional<String> optParameter(@Nonnull HttpServletRequest request, @Nonnull String parameterName) {
         return Optional.of(parameterName)
                 .map(request::getParameter)
-                .filter(not(String::isEmpty))
-                .orElse(defaultValue);
+                .filter(not(String::isEmpty));
     }
 
     /**
