@@ -110,7 +110,7 @@ public interface DataListJasperMixin extends Declutter {
 
             final String dataListId = getPropertyDataListId(prop, workflowAssignment);
             final Map<String, List<String>> filters = getPropertyDataListFilter(prop, dataList, report, workflowAssignment);
-            final JSONObject jsonResult = getDataListRow(dataListId, filters, settings.getSort(), settings.isDesc(), null);
+            final JSONObject jsonResult = getDataListRow(dataListId, filters, settings.getSort(), settings.isDesc(), DataList.MAXIMUM_PAGE_SIZE);
 
             try (final InputStream inputStream = new ByteArrayInputStream(jsonResult.toString().getBytes())) {
                 final JRDataSource ds = new JsonDataSource(inputStream, "data");
@@ -412,8 +412,10 @@ public interface DataListJasperMixin extends Declutter {
      * @return
      */
     @Nonnull
-    default JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters, @Nonnull String sort, boolean desc, Integer size) throws KecakJasperException {
+    default JSONObject getDataListRow(String dataListId, @Nonnull final Map<String, List<String>> filters, @Nonnull String sort, boolean desc, @Nonnull Integer size) throws KecakJasperException {
         final DataList dataList = getDataList(dataListId);
+        dataList.setSize(size);
+
         getCollectFilters(dataList, filters);
 
         if (!sort.isEmpty()) {
@@ -423,7 +425,7 @@ public interface DataListJasperMixin extends Declutter {
             dataList.setDefaultOrder(desc ? DataList.ORDER_DESCENDING_VALUE : DataList.ORDER_ASCENDING_VALUE);
         }
 
-        final DataListCollection<Map<String, Object>> rows = dataList.getRows(Optional.ofNullable(size).orElse(DataList.MAXIMUM_PAGE_SIZE), 0);
+        final DataListCollection<Map<String, Object>> rows = dataList.getRows(size, 0);
 
         final JSONArray jsonArrayData = Optional.ofNullable(rows)
                 .map(Collection::stream)

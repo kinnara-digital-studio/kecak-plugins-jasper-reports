@@ -133,7 +133,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                 }
 
                 final String dataListId = getRequiredParameter(request, PARAM_DATALIST_ID);
-                final Integer rows = optIntegerParameter(request, PARAM_ROWS).orElse(null);
+                final Integer rows = optIntegerParameter(request, PARAM_ROWS).orElse(DataList.MAXIMUM_PAGE_SIZE);
 
                 final Map<String, List<String>> filters = Optional.of(request.getParameterMap())
                         .map(m -> (Map<String, String[]>) m)

@@ -142,7 +142,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             final String action = getRequiredParameter(request, PARAM_ACTION);
             if ("rows".equals(action)) {
                 final Integer rows = optIntegerParameter(request, PARAM_ROWS)
-                        .orElse(null);
+                        .orElse(DataList.MAXIMUM_PAGE_SIZE);
                 boolean isAdmin = WorkflowUtil.isCurrentUserInRole(WorkflowUtil.ROLE_ADMIN);
                 if (!isAdmin) {
                     throw new ApiException(HttpServletResponse.SC_UNAUTHORIZED, "User [" + WorkflowUtil.getCurrentUsername() + "] is not admin");
