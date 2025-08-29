@@ -1,18 +1,30 @@
 package com.kinnarastudio.kecakplugins.jasperreports;
 
-import com.kinnarastudio.kecakplugins.jasperreports.exception.KecakJasperException;
-import com.kinnarastudio.kecakplugins.jasperreports.model.ReportSettings;
-import com.kinnarastudio.kecakplugins.jasperreports.utils.DataListJasperMixin;
-import net.sf.jasperreports.engine.JRException;
-import net.sf.jasperreports.engine.JasperExportManager;
-import net.sf.jasperreports.engine.JasperPrint;
-import net.sf.jasperreports.engine.export.HtmlExporter;
-import net.sf.jasperreports.engine.export.JRXlsExporter;
-import net.sf.jasperreports.export.*;
-import net.sf.jasperreports.web.util.WebHtmlResourceHandler;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.ResourceBundle;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import javax.annotation.Nonnull;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.datalist.model.DataList;
+import org.joget.apps.datalist.model.DataListCollection;
+import org.joget.apps.datalist.model.DataListColumn;
+import org.joget.apps.datalist.model.DataListColumnFormat;
 import org.joget.apps.form.model.Element;
 import org.joget.apps.form.model.Form;
 import org.joget.apps.form.model.FormBuilderPaletteElement;
@@ -24,21 +36,27 @@ import org.joget.plugin.base.PluginWebSupport;
 import org.joget.workflow.model.WorkflowAssignment;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.util.WorkflowUtil;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.kecak.apps.exception.ApiException;
 import org.springframework.beans.BeansException;
 
-import javax.annotation.Nonnull;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.sql.SQLException;
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import com.kinnarastudio.kecakplugins.jasperreports.exception.KecakJasperException;
+import com.kinnarastudio.kecakplugins.jasperreports.model.ReportSettings;
+import com.kinnarastudio.kecakplugins.jasperreports.utils.DataListJasperMixin;
+
+import net.sf.jasperreports.engine.JRException;
+import net.sf.jasperreports.engine.JasperExportManager;
+import net.sf.jasperreports.engine.JasperPrint;
+import net.sf.jasperreports.engine.export.HtmlExporter;
+import net.sf.jasperreports.engine.export.JRXlsExporter;
+import net.sf.jasperreports.export.SimpleExporterInput;
+import net.sf.jasperreports.export.SimpleHtmlExporterConfiguration;
+import net.sf.jasperreports.export.SimpleHtmlExporterOutput;
+import net.sf.jasperreports.export.SimpleOutputStreamExporterOutput;
+import net.sf.jasperreports.export.SimpleXlsReportConfiguration;
+import net.sf.jasperreports.web.util.WebHtmlResourceHandler;
 
 public class JasperViewerElement extends Element implements DataListJasperMixin, PluginWebSupport, FormBuilderPaletteElement {
     final Map<String, Form> formCache = new HashMap<>();
@@ -147,7 +165,44 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                         .filter(s -> s.matches("\\d+"))
                         .map(Integer::parseInt)
                         .orElse(Integer.MAX_VALUE);
-                final JSONObject jsonResult = getDataListRow(dataListId, filters, sort, desc, rows);
+
+
+                // final JSONObject jsonResult = getDataListRow(dataListId, filters, sort, desc, rows);
+
+                // Ambil DataList
+                DataList dataList = getDataList(dataListId, null);
+
+                // Ambil data row
+                DataListCollection rowsData = dataList.getRows();
+                JSONArray jsonArray = new JSONArray();
+
+                if (rowsData != null) {
+                    int count = 0;
+                    for (Object rowObj : rowsData) {
+                        if (count >= rows) break; // limit rows
+                        Map<String, Object> row = (Map<String, Object>) rowObj;
+                        JSONObject jsonRow = new JSONObject();
+
+                        // Format semua kolom agar sesuai dengan UI
+                        for (DataListColumn column : dataList.getColumns()) {
+                            String name = column.getName();
+                            Object rawValue = row.get(name);
+                            String formattedValue = getFormattedValue(dataList, column, row, rawValue);
+
+                            // Tambahkan raw dan formatted
+                            jsonRow.put(name, formattedValue);
+                            jsonRow.put(name + "_raw", rawValue != null ? rawValue.toString() : "");
+                        }
+
+                        jsonArray.put(jsonRow);
+                        count++;
+                    }
+                }
+
+                JSONObject jsonResult = new JSONObject();
+                jsonResult.put("data", jsonArray);
+
+                response.setContentType("application/json");
                 response.getWriter().write(jsonResult.toString());
 
                 return;
@@ -223,6 +278,15 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
             LogUtil.error(getClassName(), e, e.getMessage());
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         }
+    }
+
+    private String getFormattedValue(DataList datalist, DataListColumn column, Object row, Object value) {
+        if (column.getFormats() != null && !column.getFormats().isEmpty()) {
+            for (DataListColumnFormat format : column.getFormats()) {
+                value = format.format(datalist, column, row, value); //DataList dataList, DataListColumn column, Object row, Object value
+            }
+        }
+        return value != null ? value.toString() : "";
     }
 
     protected void generateReport(@Nonnull JasperViewerElement element, @Nonnull DataList dataList, @Nonnull final FormData formData, String type, HttpServletRequest request, HttpServletResponse response) throws JRException, BeansException, SQLException, KecakJasperException {
