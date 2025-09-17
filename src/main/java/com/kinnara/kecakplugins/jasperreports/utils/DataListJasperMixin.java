@@ -467,10 +467,10 @@ public interface DataListJasperMixin extends Declutter {
                 ImageTypeEnum mimeType = JRTypeSniffer.getImageTypeValue(imageData);
                 response.setHeader("Content-Type", mimeType.getMimeType());
                 response.setContentLength(imageData.length);
-                ServletOutputStream ouputStream = response.getOutputStream();
-                ouputStream.write(imageData, 0, imageData.length);
-                ouputStream.flush();
-                ouputStream.close();
+                try(ServletOutputStream ouputStream = response.getOutputStream()) {
+                    ouputStream.write(imageData, 0, imageData.length);
+                    ouputStream.flush();
+                }
             }
         } catch (JRException e) {
             throw new ApiException(HttpServletResponse.SC_BAD_REQUEST, e);

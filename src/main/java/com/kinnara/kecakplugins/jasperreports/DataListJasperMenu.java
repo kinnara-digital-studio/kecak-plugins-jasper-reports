@@ -203,7 +203,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             // report
             else if ("report".equals(action)) {
                 final String userviewId = getRequiredParameter(request, PARAM_USERVIEW_ID);
-                final String key = getRequiredParameter(request, PARAM_KEY);
+                final String key = getOptionalParameter(request, PARAM_KEY, "");
                 final String menuId = getRequiredParameter(request, PARAM_MENU_ID);
                 final String type = getRequiredParameter(request, PARAM_TYPE);
                 final String json = getOptionalParameter(request, PARAM_JSON, "");
@@ -249,7 +249,15 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
             response.setStatus(HttpServletResponse.SC_NO_CONTENT);
         } catch (ApiException ex) {
-            LogUtil.error(getClass().getName(), ex, ex.getMessage());
+            LogUtil.info(getClass().getName(), "Executing JSON Rest API [" + request.getRequestURI() + "] in method [" + request.getMethod() + "] as [" + WorkflowUtil.getCurrentUsername() + "]");
+
+            String parameters = ((Map<String, String[]>) request.getParameterMap()).entrySet()
+                    .stream()
+                    .map(e -> e.getKey() + "=" + Arrays.toString(e.getValue()))
+                    .collect(Collectors.joining("&"));
+
+            LogUtil.error(getClass().getName(), ex, "Parameters ["+parameters+"]. " + ex.getMessage());
+
             response.sendError(ex.getErrorCode(), ex.getMessage());
 
         } catch (Exception ex) {
@@ -267,7 +275,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
     protected UserviewMenu findUserviewMenuFromPreview(String json, String menuId, String contextPath, Map parameterMap, String key) throws BeansException, KecakJasperException {
         UserviewService userviewService = (UserviewService) AppUtil.getApplicationContext().getBean("userviewService");
-        Userview userview = userviewService.createUserview(json, menuId, false, contextPath, parameterMap, key, Boolean.valueOf(true));
+        Userview userview = userviewService.createUserview(json, menuId, false, contextPath, parameterMap, key, true);
         UserviewMenu selectedMenu = findUserviewMenuInUserview(userview, menuId);
         return selectedMenu;
     }

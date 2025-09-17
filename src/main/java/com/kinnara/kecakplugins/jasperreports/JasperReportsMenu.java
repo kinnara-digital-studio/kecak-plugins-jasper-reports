@@ -219,7 +219,7 @@ public class JasperReportsMenu extends UserviewMenu implements PluginWebSupport 
         UserviewDefinition userviewDef = (UserviewDefinition)userviewDefinitionDao.loadById(userviewId, appDef);
         if (userviewDef != null) {
             String json = userviewDef.getJson();
-            Userview userview = userviewService.createUserview(json, menuId, false, contextPath, parameterMap, key, Boolean.valueOf(true));
+            Userview userview = userviewService.createUserview(json, menuId, false, contextPath, parameterMap, key, Boolean.TRUE);
             selectedMenu = this.findUserviewMenuInUserview(userview, menuId);
         }
         return selectedMenu;
