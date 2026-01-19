@@ -38,6 +38,7 @@ import org.springframework.beans.BeansException;
 
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
@@ -150,7 +151,8 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
                 final String dataListId = getRequiredParameter(request, PARAM_DATALIST_ID);
 
-                final Map<String, List<String>> filters = Optional.of(request.getParameterMap())
+                final Map<String, List<String>> filters = Optional.of(request)
+                        .map(ServletRequest::getParameterMap)
                         .map(m -> (Map<String, String[]>) m)
                         .map(Map::entrySet)
                         .map(Collection::stream)
@@ -508,15 +510,21 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             final ReportSettings setting = new ReportSettings(sort, desc, useVirtualizer, jrxml);
 
             final String outputType = getPropertyString("output");
-            final String jasperContent;
-            // PDF
-            if ("pdf".equalsIgnoreCase(outputType)) {
-                jasperContent = generatePdfBody(pdfTemplate, userviewId, menuId, setting);
-            }
+            String cacheKey = String.join("::", getClassName(), "getRenderPage", userviewId, menuId);
+            final String jasperContent = getFromCache(cacheKey, Try.onSupplier(() -> {
+                // PDF
+                if ("pdf".equalsIgnoreCase(outputType)) {
+                    return generatePdfBody(pdfTemplate, userviewId, menuId, setting);
+                }
 
-            // HTML
-            else {
-                jasperContent = generateHtmlBody(dataList, setting);
+                // HTML
+                else {
+                    return generateHtmlBody(dataList, setting);
+                }
+            }));
+
+            if(jasperContent == null) {
+                throw new KecakJasperException("Error loading jasper");
             }
 
             model.put("jasperContent", jasperContent);

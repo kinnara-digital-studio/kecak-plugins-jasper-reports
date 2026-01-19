@@ -4,7 +4,9 @@ import com.kinnara.kecakplugins.jasperreports.exception.ApiException;
 import com.kinnara.kecakplugins.jasperreports.exception.KecakJasperException;
 import com.kinnara.kecakplugins.jasperreports.model.ReportSettings;
 import com.kinnarastudio.commons.Declutter;
+import com.kinnarastudio.commons.Try;
 import com.kinnarastudio.commons.jsonstream.JSONCollectors;
+import net.sf.ehcache.Cache;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JsonDataSource;
 import net.sf.jasperreports.engine.export.HtmlExporter;
@@ -27,6 +29,7 @@ import org.joget.apps.form.model.Form;
 import org.joget.apps.form.model.FormData;
 import org.joget.apps.form.service.FormService;
 import org.joget.apps.userview.model.UserviewMenu;
+import org.joget.commons.util.LogUtil;
 import org.joget.commons.util.SetupManager;
 import org.joget.plugin.property.model.PropertyEditable;
 import org.joget.workflow.model.WorkflowAssignment;
@@ -36,6 +39,7 @@ import org.json.JSONObject;
 import org.springframework.context.ApplicationContext;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
@@ -47,6 +51,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -88,6 +93,11 @@ public interface DataListJasperMixin extends Declutter {
 
     @Nonnull
     default JasperPrint getJasperPrint(@Nonnull PropertyEditable prop, DataList dataList, WorkflowAssignment workflowAssignment, ReportSettings settings) throws KecakJasperException {
+        return getJasperPrint(prop, dataList, workflowAssignment, settings, DataList.MAXIMUM_PAGE_SIZE);
+    }
+
+    @Nonnull
+    default JasperPrint getJasperPrint(@Nonnull PropertyEditable prop, DataList dataList, WorkflowAssignment workflowAssignment, ReportSettings settings, int rows) throws KecakJasperException {
         String jrxml = settings.getJrxml();
 
         if (!JasperCompileManager.class.getClassLoader().equals(UserviewMenu.class.getClassLoader())) {
@@ -110,7 +120,7 @@ public interface DataListJasperMixin extends Declutter {
 
             final String dataListId = getPropertyDataListId(prop, workflowAssignment);
             final Map<String, List<String>> filters = getPropertyDataListFilter(prop, dataList, report, workflowAssignment);
-            final JSONObject jsonResult = getDataListRow(dataListId, filters, settings.getSort(), settings.isDesc(), DataList.MAXIMUM_PAGE_SIZE);
+            final JSONObject jsonResult = getDataListRow(dataListId, filters, settings.getSort(), settings.isDesc(), rows);
 
             try (final InputStream inputStream = new ByteArrayInputStream(jsonResult.toString().getBytes())) {
                 final JRDataSource ds = new JsonDataSource(inputStream, "data");
@@ -155,29 +165,30 @@ public interface DataListJasperMixin extends Declutter {
     }
 
     default Form generateForm(String formDefId, final Map<String, Form> formCache) throws KecakJasperException {
-        if (formCache.containsKey(formDefId)) {
-            return formCache.get(formDefId);
-        }
+        String cacheKey = String.join("::", DataListJasperMixin.class.getName(), "generateForm", formDefId);
 
-        final AppDefinition appDefinition = AppUtil.getCurrentAppDefinition();
-        final ApplicationContext appContext = AppUtil.getApplicationContext();
-        final FormService formService = (FormService) appContext.getBean("formService");
-        final FormDefinitionDao formDefinitionDao = (FormDefinitionDao) appContext.getBean("formDefinitionDao");
+        @Nullable
+        Form result = getFromCache(cacheKey, () -> {
+            final AppDefinition appDefinition = AppUtil.getCurrentAppDefinition();
+            final ApplicationContext appContext = AppUtil.getApplicationContext();
+            final FormService formService = (FormService) appContext.getBean("formService");
+            final FormDefinitionDao formDefinitionDao = (FormDefinitionDao) appContext.getBean("formDefinitionDao");
 
-        if (appDefinition == null) {
-            throw new KecakJasperException("Application definition is not available");
-        }
+            if (appDefinition == null) {
+                return null;
+            }
 
-        final Form form = Optional.ofNullable(formDefId)
-                .map(s -> formDefinitionDao.loadById(s, appDefinition))
-                .map(FormDefinition::getJson)
-                .map(formService::createElementFromJson)
-                .map(e -> (Form) e)
+            final Form form = (Form) Optional.ofNullable(formDefId)
+                    .map(s -> formDefinitionDao.loadById(s, appDefinition))
+                    .map(FormDefinition::getJson)
+                    .map(formService::createElementFromJson)
+                    .orElse(null);
+
+            return form;
+        });
+
+        return Optional.ofNullable(result)
                 .orElseThrow(() -> new KecakJasperException("Error generating form [" + formDefId + "]"));
-
-        formCache.put(formDefId, form);
-
-        return form;
     }
 
     /**
@@ -391,22 +402,32 @@ public interface DataListJasperMixin extends Declutter {
      */
     @Nonnull
     default DataList getDataList(String datalistId, WorkflowAssignment workflowAssignment) throws KecakJasperException {
-        ApplicationContext appContext = AppUtil.getApplicationContext();
-        AppDefinition appDef = AppUtil.getCurrentAppDefinition();
+        String cacheKey = String.join("::", DataListJasperMixin.class.getName(), "getDataList", datalistId, workflowAssignment != null ? workflowAssignment.getActivityId() : "no-assignment");
 
-        DataListService dataListService = (DataListService) appContext.getBean("dataListService");
-        DatalistDefinitionDao datalistDefinitionDao = (DatalistDefinitionDao) appContext.getBean("datalistDefinitionDao");
-        DatalistDefinition datalistDefinition = datalistDefinitionDao.loadById(datalistId, appDef);
+        @Nullable
+        DataList result = getFromCache(cacheKey, () -> {
+            ApplicationContext appContext = AppUtil.getApplicationContext();
+            AppDefinition appDef = AppUtil.getCurrentAppDefinition();
 
-        return Optional.ofNullable(datalistDefinition)
-                .map(DatalistDefinition::getJson)
-                .map(s -> processHashVariable(s, workflowAssignment))
-                .map(dataListService::fromJson)
+            DataListService dataListService = (DataListService) appContext.getBean("dataListService");
+            DatalistDefinitionDao datalistDefinitionDao = (DatalistDefinitionDao) appContext.getBean("datalistDefinitionDao");
+            DatalistDefinition datalistDefinition = datalistDefinitionDao.loadById(datalistId, appDef);
+
+            return Optional.ofNullable(datalistDefinition)
+                    .map(DatalistDefinition::getJson)
+                    .map(s -> processHashVariable(s, workflowAssignment))
+                    .map(dataListService::fromJson)
+                    .orElse(null);
+        });
+
+        return Optional.ofNullable(result)
                 .orElseThrow(() -> new KecakJasperException("DataList [" + datalistId + "] not found"));
+
     }
 
     /**
      * Get DataList row as JSONObject
+     * Starts from data# 0. Assume no paging
      *
      * @param dataListId
      * @return
@@ -425,6 +446,7 @@ public interface DataListJasperMixin extends Declutter {
             dataList.setDefaultOrder(desc ? DataList.ORDER_DESCENDING_VALUE : DataList.ORDER_ASCENDING_VALUE);
         }
 
+        // starts from 0, assume no paging
         final DataListCollection<Map<String, Object>> rows = dataList.getRows(size, 0);
 
         final JSONArray jsonArrayData = Optional.ofNullable(rows)
@@ -677,5 +699,38 @@ public interface DataListJasperMixin extends Declutter {
      */
     default <T> Predicate<T> not(Predicate<T> p) {
         return (t) -> !p.test(t);
+    }
+
+    /**
+     *
+     * @param cacheKey
+     * @param ifNoCache
+     * @return
+     * @param <T>
+     */
+    default  <T> T getFromCache(String cacheKey, Supplier<T> ifNoCache) {
+
+        final Cache cache = (Cache) AppUtil.getApplicationContext().getBean("fluCache");
+
+        net.sf.ehcache.Element cached = cache.get(cacheKey);
+        if (cached != null) {
+            T value = (T) cached.getObjectValue();
+            assert Objects.nonNull(value);
+
+            LogUtil.info(DataListJasperMixin.class.getName(), "Cache hit for key [" + cacheKey + "]");
+            LogUtil.debug(DataListJasperMixin.class.getName(), "Cache hit for key [" + cacheKey + "] value [" + value + "]");
+
+            return value;
+        }
+
+        assert Objects.nonNull(ifNoCache);
+
+        T value = ifNoCache.get();
+
+        if(value != null) {
+            cache.put(new net.sf.ehcache.Element(cacheKey, value));
+        }
+
+        return value;
     }
 }

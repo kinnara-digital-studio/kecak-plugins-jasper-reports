@@ -156,7 +156,7 @@ public class DataListJasperTool extends DefaultApplicationPlugin implements Data
                 String dataListId = getRequiredParameter(request, "dataListId");
                 try {
                     JSONObject jsonObject = new JSONObject();
-                    jsonObject.put("message", request.getRequestURL() + "?action=rows&dataListId=" + dataListId);
+                    jsonObject.put("message", request.getRequestURL() + "?action=rows&rows=10&dataListId=" + dataListId);
                     response.getWriter().write(jsonObject.toString());
                     return;
                 } catch (JSONException e) {
