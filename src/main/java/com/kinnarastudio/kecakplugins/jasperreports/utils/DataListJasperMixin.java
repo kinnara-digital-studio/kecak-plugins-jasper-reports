@@ -142,7 +142,29 @@ public interface DataListJasperMixin extends Declutter {
      * @return
      */
     default String getPropertyFileName(ExtDefaultPlugin menu) {
-        return getOptionalProperty(menu, "filename");
+        return getPropertyFileName(menu, null);
+    }
+
+    /**
+     * Get property "fileName" with workflow assignment context
+     *
+     * @param prop
+     * @param workflowAssignment
+     * @return
+     */
+    default String getPropertyFileName(ExtDefaultPlugin prop, WorkflowAssignment workflowAssignment) {
+        final String fileName = Optional.of("fileName")
+                .map(prop::getPropertyString)
+                .filter(s -> !s.trim().isEmpty())
+                .orElseGet(() -> Optional.of("filename")
+                        .map(prop::getPropertyString)
+                        .filter(s -> !s.trim().isEmpty())
+                        .orElse(""));
+
+        return Optional.of(fileName)
+                .filter(s -> !s.trim().isEmpty())
+                .map(s -> processHashVariable(s, workflowAssignment))
+                .orElse("");
     }
 
     /**

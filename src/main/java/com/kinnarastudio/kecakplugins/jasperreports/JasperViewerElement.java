@@ -247,8 +247,8 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
 
     protected void generateReport(@Nonnull JasperViewerElement element, @Nonnull DataList dataList, @Nonnull final FormData formData, String type, HttpServletRequest request, HttpServletResponse response) throws JRException, BeansException, SQLException, KecakJasperException {
         final WorkflowManager workflowManager = (WorkflowManager) AppUtil.getApplicationContext().getBean("workflowManager");
-        final String fileName = element.getFilename();
         final WorkflowAssignment workflowAssignment = workflowManager.getAssignment(formData.getActivityId());
+        final String fileName = element.getFilename(workflowAssignment);
 
         final String sort = element.getPropertyString("dataListSortBy");
         final boolean desc = "true".equalsIgnoreCase(element.getPropertyString("dataListSortDesc"));
@@ -260,14 +260,16 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
 
         try (final OutputStream output = response.getOutputStream()) {
             if ("pdf".equals(type)) {
+                final String downloadFileName = fileName.toLowerCase().endsWith(".pdf") ? fileName : (fileName + ".pdf");
                 response.setHeader("Content-Type", "application/pdf");
-                response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".pdf");
+                response.setHeader("Content-Disposition", "inline; filename=\"" + downloadFileName + "\"");
                 LogUtil.info(this.getClassName(), ("Generating PDF report for " + fileName));
                 LogUtil.debug(this.getClassName(), ("Generating PDF report for " + fileName));
                 JasperExportManager.exportReportToPdfStream(print, output);
             } else if ("xls".equals(type)) {
+                final String downloadFileName = fileName.toLowerCase().endsWith(".xls") ? fileName : (fileName + ".xls");
                 response.setHeader("Content-Type", "application/vnd.ms-excel");
-                response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".xls");
+                response.setHeader("Content-Disposition", "inline; filename=\"" + downloadFileName + "\"");
                 LogUtil.debug(this.getClass().getName(), ("Generating XLS report for " + fileName));
 
                 final JRXlsExporter exporter = new JRXlsExporter() {{
@@ -283,8 +285,9 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
 
                 exporter.exportReport();
             } else {
+                final String downloadFileName = fileName.toLowerCase().endsWith(".html") ? fileName : (fileName + ".html");
                 response.setHeader("Content-Type", "text/html; charset=UTF-8");
-                response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".html");
+                response.setHeader("Content-Disposition", "inline; filename=\"" + downloadFileName + "\"");
                 LogUtil.debug(this.getClass().getName(), ("Generating HTML report for " + fileName));
 
                 if (request != null) {
@@ -313,7 +316,11 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
     }
 
     public String getFilename() {
-        return ifEmpty(getPropertyFileName(this), getPropertyId(this));
+        return getFilename((WorkflowAssignment) null);
+    }
+
+    public String getFilename(WorkflowAssignment workflowAssignment) {
+        return ifEmpty(getPropertyFileName(this, workflowAssignment), getPropertyId(this));
     }
 
     protected String getElementValue(FormData formData) {

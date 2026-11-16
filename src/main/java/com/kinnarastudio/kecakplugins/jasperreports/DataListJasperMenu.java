@@ -375,14 +375,16 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
         try (final OutputStream output = response.getOutputStream()) {
             if ("pdf".equals(type)) {
+                final String downloadFileName = fileName.toLowerCase().endsWith(".pdf") ? fileName : (fileName + ".pdf");
                 response.setHeader("Content-Type", "application/pdf");
-                response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".pdf");
+                response.setHeader("Content-Disposition", "inline; filename=\"" + downloadFileName + "\"");
                 LogUtil.info(this.getClassName(), ("Generating PDF report for " + fileName));
                 LogUtil.debug(this.getClassName(), ("Generating PDF report for " + fileName));
                 JasperExportManager.exportReportToPdfStream(print, output);
             } else if ("xls".equals(type)) {
+                final String downloadFileName = fileName.toLowerCase().endsWith(".xls") ? fileName : (fileName + ".xls");
                 response.setHeader("Content-Type", "application/vnd.ms-excel");
-                response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".xls");
+                response.setHeader("Content-Disposition", "inline; filename=\"" + downloadFileName + "\"");
                 LogUtil.debug(this.getClass().getName(), ("Generating XLS report for " + fileName));
 
                 final JRXlsExporter exporter = new JRXlsExporter();
@@ -397,8 +399,9 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                 exporter.setConfiguration(configuration);
                 exporter.exportReport();
             } else {
+                final String downloadFileName = fileName.toLowerCase().endsWith(".html") ? fileName : (fileName + ".html");
                 response.setHeader("Content-Type", "text/html; charset=UTF-8");
-                response.setHeader("Content-Disposition", "inline; filename=" + fileName + ".html");
+                response.setHeader("Content-Disposition", "inline; filename=\"" + downloadFileName + "\"");
                 LogUtil.debug(this.getClass().getName(), ("Generating HTML report for " + fileName));
 
                 if (request != null) {
