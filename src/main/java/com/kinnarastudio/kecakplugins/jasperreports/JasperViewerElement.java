@@ -51,6 +51,7 @@ import net.sf.jasperreports.engine.JasperExportManager;
 import net.sf.jasperreports.engine.JasperPrint;
 import net.sf.jasperreports.engine.export.HtmlExporter;
 import net.sf.jasperreports.engine.export.JRXlsExporter;
+import net.sf.jasperreports.engine.export.ooxml.JRDocxExporter;
 import net.sf.jasperreports.export.SimpleExporterInput;
 import net.sf.jasperreports.export.SimpleHtmlExporterConfiguration;
 import net.sf.jasperreports.export.SimpleHtmlExporterOutput;
@@ -68,6 +69,23 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
         dataModel.put("className", getClassName());
         dataModel.put("src", getElementValue(formData));
         dataModel.put("ratio", this.getPropertyString("ratio"));
+
+        final String exportProperty = this.getPropertyString("export");
+        dataModel.put("export", exportProperty);
+
+        final Map<String, String> exportUrls = new HashMap<>();
+        if (exportProperty != null && !exportProperty.isEmpty()) {
+            if (exportProperty.contains("pdf")) {
+                exportUrls.put("pdf", getReportUrl(formData, "pdf"));
+            }
+            if (exportProperty.contains("xls")) {
+                exportUrls.put("xls", getReportUrl(formData, "xls"));
+            }
+            if (exportProperty.contains("docx")) {
+                exportUrls.put("docx", getReportUrl(formData, "docx"));
+            }
+        }
+        dataModel.put("exportUrls", exportUrls);
 
         FormUtil.setReadOnlyProperty(this);
 
@@ -193,7 +211,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                 final String assignmentId = optParameter(request, PARAM_ASSIGNMENT_ID, "");
                 final String processId = optParameter(request, PARAM_PROCESS_ID, "");
 
-                if ("pdf".equalsIgnoreCase(type)) {
+                if ("pdf".equalsIgnoreCase(type) || "docx".equalsIgnoreCase(type) || "xls".equalsIgnoreCase(type) || "html".equalsIgnoreCase(type)) {
                     final Form form = generateForm(formDefId, formCache);
 
                     final FormData formData = new FormData();
@@ -259,17 +277,28 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
         final JasperPrint print = getJasperPrint(element, dataList, workflowAssignment, settings);
 
         try (final OutputStream output = response.getOutputStream()) {
-            if ("pdf".equals(type)) {
+            if ("pdf".equalsIgnoreCase(type)) {
                 final String downloadFileName = fileName.toLowerCase().endsWith(".pdf") ? fileName : (fileName + ".pdf");
                 response.setHeader("Content-Type", "application/pdf");
                 response.setHeader("Content-Disposition", "inline; filename=\"" + downloadFileName + "\"");
                 LogUtil.info(this.getClassName(), ("Generating PDF report for " + fileName));
                 LogUtil.debug(this.getClassName(), ("Generating PDF report for " + fileName));
                 JasperExportManager.exportReportToPdfStream(print, output);
-            } else if ("xls".equals(type)) {
+            } else if ("docx".equalsIgnoreCase(type)) {
+                final String downloadFileName = fileName.toLowerCase().endsWith(".docx") ? fileName : (fileName + ".docx");
+                response.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+                response.setHeader("Content-Disposition", "attachment; filename=\"" + downloadFileName + "\"");
+                LogUtil.info(this.getClassName(), ("Generating DOCX report for " + fileName));
+                LogUtil.debug(this.getClassName(), ("Generating DOCX report for " + fileName));
+
+                final JRDocxExporter exporter = new JRDocxExporter();
+                exporter.setExporterInput(new SimpleExporterInput(print));
+                exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(output));
+                exporter.exportReport();
+            } else if ("xls".equalsIgnoreCase(type)) {
                 final String downloadFileName = fileName.toLowerCase().endsWith(".xls") ? fileName : (fileName + ".xls");
                 response.setHeader("Content-Type", "application/vnd.ms-excel");
-                response.setHeader("Content-Disposition", "inline; filename=\"" + downloadFileName + "\"");
+                response.setHeader("Content-Disposition", "attachment; filename=\"" + downloadFileName + "\"");
                 LogUtil.debug(this.getClass().getName(), ("Generating XLS report for " + fileName));
 
                 final JRXlsExporter exporter = new JRXlsExporter() {{
@@ -323,7 +352,7 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
         return ifEmpty(getPropertyFileName(this, workflowAssignment), getPropertyId(this));
     }
 
-    protected String getElementValue(FormData formData) {
+    protected String getReportUrl(FormData formData, String type) {
         final AppDefinition appDefinition = AppUtil.getCurrentAppDefinition();
         final WorkflowManager workflowManager = (WorkflowManager) AppUtil.getApplicationContext().getBean("workflowManager");
         final WorkflowAssignment workflowAssignment = Optional.of(formData)
@@ -349,10 +378,14 @@ public class JasperViewerElement extends Element implements DataListJasperMixin,
                 + getClassName() + "/service?" + PARAM_ACTION + "=report&id="
                 + formData.getPrimaryKeyValue() + "&" + PARAM_FORM_ID + "="
                 + formDefId + "&" + PARAM_ELEMENT_ID + "="
-                + getPropertyString("id") + "&" + PARAM_TYPE + "=pdf"
+                + getPropertyString("id") + "&" + PARAM_TYPE + "=" + type
                 + assignmentParameter;
 
         return AppUtil.processHashVariable(url, workflowAssignment, null, null);
+    }
+
+    protected String getElementValue(FormData formData) {
+        return getReportUrl(formData, "pdf");
     }
 
 
