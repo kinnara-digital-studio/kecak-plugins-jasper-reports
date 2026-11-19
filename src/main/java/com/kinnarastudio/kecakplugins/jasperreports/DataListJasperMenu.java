@@ -10,6 +10,7 @@ import net.sf.jasperreports.engine.JasperExportManager;
 import net.sf.jasperreports.engine.JasperPrint;
 import net.sf.jasperreports.engine.export.HtmlExporter;
 import net.sf.jasperreports.engine.export.JRXlsExporter;
+import net.sf.jasperreports.engine.export.ooxml.JRDocxExporter;
 import net.sf.jasperreports.export.*;
 import net.sf.jasperreports.web.util.WebHtmlResourceHandler;
 import org.joget.apps.app.dao.UserviewDefinitionDao;
@@ -20,6 +21,7 @@ import org.joget.apps.datalist.model.DataList;
 import org.joget.apps.datalist.model.DataListBinder;
 import org.joget.apps.datalist.model.DataListCollection;
 import org.joget.apps.form.service.FormUtil;
+import org.joget.apps.userview.model.CachedUserviewMenu;
 import org.joget.apps.userview.model.Userview;
 import org.joget.apps.userview.model.UserviewCategory;
 import org.joget.apps.userview.model.UserviewMenu;
@@ -36,12 +38,14 @@ import org.kecak.apps.exception.ApiException;
 import org.springframework.beans.BeansException;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -217,7 +221,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
                 // report
                 case "report": {
                     final String userviewId = getParameter(request, PARAM_USERVIEW_ID);
-                    final String key = getParameter(request, PARAM_KEY);
+                    final String key = optParameter(request, PARAM_KEY, "_");
                     final String menuId = getParameter(request, PARAM_MENU_ID);
                     final String type = getParameter(request, PARAM_TYPE);
                     final String json = optParameter(request, PARAM_JSON, "");
@@ -232,22 +236,24 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
 
                     final AppDefinition appDef = AppUtil.getCurrentAppDefinition();
 
-                    final DataListJasperMenu selectedMenu = (DataListJasperMenu) Optional.of(json)
+                    final UserviewMenu selectedMenu = Optional.of(json)
                             .map(String::trim)
                             .filter(not(String::isEmpty))
                             .map(Try.onFunction(
                                     s -> findUserviewMenuFromPreview(s, menuId, contextPath, parameterMap, key)))
-                            .filter(m -> m instanceof DataListJasperMenu)
+                            .map(this::unwrap)
+                            .filter(this::isDataListJasperMenu)
                             .orElse(Optional
                                     .ofNullable(findUserviewMenuFromDef(appDef, userviewId, menuId, key, contextPath,
                                             parameterMap))
-                                    .filter(m -> m instanceof DataListJasperMenu)
+                                    .map(this::unwrap)
+                                    .filter(this::isDataListJasperMenu)
                                     .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Menu ["
                                             + menuId + "] is not available in userview [" + userviewId + "]")));
 
                     final boolean useVirtualizer = getPropertyUseVirtualizer(selectedMenu);
                     final String jrxml = getPropertyJrxml(selectedMenu, null);
-                    final String dataListId = selectedMenu.getPropertyDataListId();
+                    final String dataListId = selectedMenu.getPropertyString("dataListId");
                     final DataList dataList = getDataList(dataListId);
                     final ReportSettings settings = new ReportSettings(sort, desc, rows, useVirtualizer, jrxml);
                     generateReport(selectedMenu, type, request, response, dataList, settings);
@@ -288,6 +294,43 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
         }
     }
 
+    @Nonnull
+    protected UserviewMenu unwrap(@Nonnull UserviewMenu menu) {
+        UserviewMenu current = menu;
+        while (current instanceof CachedUserviewMenu) {
+            try {
+                Field f = CachedUserviewMenu.class.getDeclaredField("delegate");
+                f.setAccessible(true);
+                Object delegate = f.get(current);
+                if (delegate instanceof UserviewMenu) {
+                    current = (UserviewMenu) delegate;
+                } else {
+                    break;
+                }
+            } catch (Exception e) {
+                LogUtil.debug(getClassName(), "Error unwrapping CachedUserviewMenu: " + e.getMessage());
+                break;
+            }
+        }
+        return current;
+    }
+
+    protected boolean isDataListJasperMenu(@Nullable UserviewMenu menu) {
+        if (menu == null) {
+            return false;
+        }
+        UserviewMenu unwrapped = unwrap(menu);
+        if (unwrapped instanceof DataListJasperMenu) {
+            return true;
+        }
+        if (menu instanceof CachedUserviewMenu) {
+            if (((CachedUserviewMenu) menu).instanceOf(DataListJasperMenu.class)) {
+                return true;
+            }
+        }
+        return getClassName().equals(menu.getClassName()) || getClassName().equals(unwrapped.getClassName());
+    }
+
     protected UserviewMenu findUserviewMenuFromPreview(String json, String menuId, String contextPath, Map parameterMap,
             String key) throws BeansException, KecakJasperException {
         UserviewService userviewService = (UserviewService) AppUtil.getApplicationContext().getBean("userviewService");
@@ -310,8 +353,31 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
     }
 
     protected UserviewMenu findUserviewMenuInUserview(Userview userview, String menuId) throws KecakJasperException {
+        if (userview == null) {
+            throw new KecakJasperException("Userview is null");
+        }
+
+        if (userview.getCurrent() != null) {
+            final UserviewMenu current = userview.getCurrent();
+            final UserviewMenu unwrapped = unwrap(current);
+            if (menuId.equals(getPropertyCustomId(unwrapped)) || menuId.equals(getPropertyId(unwrapped))
+                    || menuId.equals(current.getPropertyString("id")) || menuId.equals(current.getPropertyString("customId"))
+                    || menuId.equals(unwrapped.getPropertyString("id")) || menuId.equals(unwrapped.getPropertyString("customId"))) {
+                return unwrapped;
+            }
+        }
+
         return getMenuStream(userview)
-                .filter(u -> menuId.equals(getPropertyCustomId(u)) || menuId.equals(getPropertyId(u)))
+                .filter(u -> {
+                    final UserviewMenu unwrapped = unwrap(u);
+                    return menuId.equals(getPropertyCustomId(unwrapped))
+                            || menuId.equals(getPropertyId(unwrapped))
+                            || menuId.equals(u.getPropertyString("id"))
+                            || menuId.equals(u.getPropertyString("customId"))
+                            || menuId.equals(unwrapped.getPropertyString("id"))
+                            || menuId.equals(unwrapped.getPropertyString("customId"));
+                })
+                .map(this::unwrap)
                 .findFirst()
                 .orElseThrow(() -> new KecakJasperException("No matching menu [" + menuId + "] found in userview [" + userview.getPropertyString("id") + "]"));
     }
@@ -374,17 +440,28 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
         final JasperPrint print = getJasperPrint(menu, dataList, null, settings);
 
         try (final OutputStream output = response.getOutputStream()) {
-            if ("pdf".equals(type)) {
+            if ("pdf".equalsIgnoreCase(type)) {
                 final String downloadFileName = fileName.toLowerCase().endsWith(".pdf") ? fileName : (fileName + ".pdf");
                 response.setHeader("Content-Type", "application/pdf");
                 response.setHeader("Content-Disposition", "inline; filename=\"" + downloadFileName + "\"");
                 LogUtil.info(this.getClassName(), ("Generating PDF report for " + fileName));
                 LogUtil.debug(this.getClassName(), ("Generating PDF report for " + fileName));
                 JasperExportManager.exportReportToPdfStream(print, output);
-            } else if ("xls".equals(type)) {
+            } else if ("docx".equalsIgnoreCase(type)) {
+                final String downloadFileName = fileName.toLowerCase().endsWith(".docx") ? fileName : (fileName + ".docx");
+                response.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+                response.setHeader("Content-Disposition", "attachment; filename=\"" + downloadFileName + "\"");
+                LogUtil.info(this.getClassName(), ("Generating DOCX report for " + fileName));
+                LogUtil.debug(this.getClassName(), ("Generating DOCX report for " + fileName));
+
+                final JRDocxExporter exporter = new JRDocxExporter();
+                exporter.setExporterInput(new SimpleExporterInput(print));
+                exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(output));
+                exporter.exportReport();
+            } else if ("xls".equalsIgnoreCase(type)) {
                 final String downloadFileName = fileName.toLowerCase().endsWith(".xls") ? fileName : (fileName + ".xls");
                 response.setHeader("Content-Type", "application/vnd.ms-excel");
-                response.setHeader("Content-Disposition", "inline; filename=\"" + downloadFileName + "\"");
+                response.setHeader("Content-Disposition", "attachment; filename=\"" + downloadFileName + "\"");
                 LogUtil.debug(this.getClass().getName(), ("Generating XLS report for " + fileName));
 
                 final JRXlsExporter exporter = new JRXlsExporter();
@@ -473,6 +550,7 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             this.setProperty("includeHeader", header);
             String pdfUrl = contextPath + reportUrl + "&" + PARAM_TYPE + "=pdf&" + PARAM_SORT + "=" + getSortBy() + "&" + PARAM_DESC + "=" + isSortDescending();
             String excelUrl = contextPath + reportUrl + "&" + PARAM_TYPE + "=xls&" + PARAM_SORT + "=" + getSortBy() + "&" + PARAM_DESC + "=" + isSortDescending();
+            String docxUrl = contextPath + reportUrl + "&" + PARAM_TYPE + "=docx&" + PARAM_SORT + "=" + getSortBy() + "&" + PARAM_DESC + "=" + isSortDescending();
             ;
             String footer = "<div class=\"exportlinks\">";
             String exportProperty = this.getPropertyString("export");
@@ -481,6 +559,9 @@ public class DataListJasperMenu extends UserviewMenu implements DataListJasperMi
             }
             if (exportProperty != null && exportProperty.contains("xls")) {
                 footer = footer + "<a href=\"" + excelUrl + "\" target=\"_blank\"><span class=\"export excel\">Excel</span></a>";
+            }
+            if (exportProperty != null && (exportProperty.contains("docx") || exportProperty.contains("word"))) {
+                footer = footer + "<a href=\"" + docxUrl + "\" target=\"_blank\"><span class=\"export word\">Word</span></a>";
             }
             footer = footer + "</div>";
             String customFooter = this.getPropertyString("customFooter");
